@@ -1,8 +1,6 @@
-﻿using BAD.Generator;
+﻿namespace BAD.Generator;
 
-namespace BAD;
-
-public class GeneratorBoolean: IGenerator
+public class GeneratorBoolean : IGenerator
 {
     public static bool RandomBoolean()
     {

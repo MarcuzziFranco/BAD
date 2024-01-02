@@ -1,8 +1,18 @@
 ﻿/***
- * Brutality Api Destroyed
- * 1-Read Json simple model (one level) X
- * 2-Generate new Json other values (equal values) X
- * 3-Generate new Json other values differents values (equals types) X
+* Brutality Api Destroyed
+* 1- Read a simple Json model (one level). ✔️
+* 2- Generate a new Json with equal values. ✔️
+* 3- Generate a new Json with different values (same types). ✔️
+* 4- Validate UUID and generate a value. ✔️
+* 5- Validate a floating-point number (float) and generate a random value.✔️
+* 6- Read a Json with multiple-level objects. ✔️
+* 7- Read a Json with an array object and generate values. ✔️
+* 8- Read a Json from a CSV file with only values.                              !!!Low priority!!!
+* 9- Be able to determine which values change and which do not by a CSV file.   !!!Low priority!!!
+* 10- Execute a GET request towards a service with a generated Json (one case).
+* 11- Execute GET requests towards a service with multiple generated Json.
+* 12- Save the result of the request and the service response.
+* 13- Generate a request using CURL and load a Json.
  * ***/
 
 using BAD.Generator;
@@ -17,9 +27,6 @@ var json = File.ReadAllText(pathJson);
 List<dynamic> listJsonGenerate = new List<dynamic>();
 Analyzer analyzer = new Analyzer(json);
 
-//analyzer.PrintListValues();
-//analyzer.PrintListValuesType();
-//analyzer.PrintListKeys();
 
 //Generate news json
 for (int i = 0; i < count; i++)

@@ -1,7 +1,6 @@
-﻿using BAD.Generator;
-using System;
+﻿using System;
 
-namespace BAD;
+namespace BAD.Generator;
 
 public class GeneratorDateTime : IGenerator
 {
@@ -13,7 +12,7 @@ public class GeneratorDateTime : IGenerator
 
         DateTime randomDate = min.AddDays(randomDays);
         string date = randomDate.ToString(format);
-        return Convert.ToDateTime(date); 
+        return Convert.ToDateTime(date);
     }
 
     public static DateTime RandomDatetime(string dateMin, string dateMax, string format)

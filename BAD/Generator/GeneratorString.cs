@@ -1,7 +1,7 @@
-﻿using BAD.Generator;
-using System;
+﻿using System;
+using System.Text.RegularExpressions;
 
-namespace BAD;
+namespace BAD.Generator;
 
 public class GeneratorString : IGenerator
 {
@@ -9,8 +9,10 @@ public class GeneratorString : IGenerator
     private static string seedToUpperCase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     private static string seedAllCase = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
+    private static string pattern = @"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$";
 
-    private static string StringRandom(string seed,int lengthMax, bool beginUpperCase, bool allUpperCase)
+
+    private static string StringRandom(string seed, int lengthMax, bool beginUpperCase, bool allUpperCase)
     {
         Random random = new();
 
@@ -26,7 +28,7 @@ public class GeneratorString : IGenerator
         if (beginUpperCase && !string.IsNullOrEmpty(randomString)) randomString = char.ToUpper(randomString[0]) + randomString.Substring(1);
 
         return randomString;
-        
+
     }
     public static string StringRandomLowerCase(int lengthMax, bool beginUpperCase, bool allUpperCase)
     {
@@ -41,5 +43,16 @@ public class GeneratorString : IGenerator
     public static string StringRandomAllCase(int lengthMax, bool beginUpperCase, bool allUpperCase)
     {
         return StringRandom(seedAllCase, lengthMax, beginUpperCase, allUpperCase);
+    }
+
+    public static bool IsUUID(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return false;
+        else return Regex.IsMatch(value, pattern);
+    }
+
+    public static Guid StringRandomUUID()
+    {
+        return Guid.NewGuid();
     }
 }

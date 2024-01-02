@@ -1,0 +1,165 @@
+{
+    "customer": {
+        "customerChannelId": 20200431,
+        "partyId": 0,
+        "partyType": {
+            "id": 1
+        },
+        "lastName": "FEDERER",
+        "firstName": "ROGER",
+        "secondName": "XXXXX",
+        "identifications": [
+            {
+                "identificationType": {
+                    "id": 1
+                },
+                "identificationNumber": 20200431
+            }
+        ],
+        "gender": {
+            "id": 1
+        },
+        "maritalStatus": {
+            "id": 2
+        },
+        "birthDate": 3532434,
+        "nationallity": {
+            "id": 32
+        },
+        "partyCiiu": {
+            "id": 44524
+        },
+        "partyActivity": {
+            "id": 324432
+        },
+        "partyPractice": {
+            "id": 23
+        },
+        "fiscalCondition": {
+            "id": 1
+        },
+        "stateTaxCondition": {
+            "id": 1
+        },
+        "partySegment": {
+            "id": 1200000
+        },
+        "partyServiceModel": {
+            "id": "PR"
+        },
+        "partyServiceModelCategory": {
+            "id": "PQAGCOM"
+        },
+        "addresses": [
+            {
+                "street": "AV. ALICIA M. DE JUSTO",
+                "streetNumber": "2050",
+                "floor": "1",
+                "door": "114",
+                "street1": "INDEPENDENCIA",
+                "street2": "BRASIL",
+                "addressComment": "TRATAR DE NO UTILIZAR ESTE CAMPO",
+                "postalCode": "C1107EKK",
+                "addressType": {
+                    "id": 3
+                }
+            }
+        ],
+        "phones": [
+            {
+                "phoneType": {
+                    "id": 1
+                },
+                "countryCode": 54,
+                "areaCode": 11,
+                "phonePrefixNumber": 4,
+                "phoneNumber": 3115678,
+                "phoneExtension": 100,
+                "phoneComment": "TRATAR DE NO UTILIZAR ESTE CAMPO"
+            }
+        ],
+        "emails": [
+            {
+                "emailType": {
+                    "id": 1
+                },
+                "email": "algalarza@galiciaseguros.com.ar",
+                "emailComment": "TRATAR DE NO UTILIZAR ESTE CAMPO"
+            }
+        ],
+        "accounts": [
+            {
+                "accountType": {
+                    "id": 1
+                },
+                "creditCard": {
+                    "id": 1
+                },
+                "interAccountNbr": "2850590940090418135201",
+                "bankId": 123123,
+                "branchId": 1,
+                "accountNumber": 402191933131,
+                "currency": {
+                    "id": 1
+                }
+            },
+            {
+                "accountType": {
+                    "id": 4
+                },
+                "creditCard": {
+                    "id": 1
+                },
+                "interAccountNbr": "4338300001760627",
+                "bankId": 123123,
+                "branchId": 1,
+                "accountNumber": 4338300001760627,
+                "currency": {
+                    "id": 1
+                }
+            },
+            {
+                "accountType": {
+                    "id": 2
+                },
+                "creditCard": {
+                    "id": 1
+                },
+                "interAccountNbr": "234563300005453200042",
+                "bankId": 123123,
+                "branchId": 1,
+                "accountNumber": 1122021383,
+                "currency": {
+                    "id": 1
+                }
+            }
+        ]
+    },
+    "channel": {
+        "organisationId": 7000,
+        "salesChannelId": 301,
+        "posId": 9999,
+        "salesPartyId": "AlGalarza",
+        "referalId": "123",
+        "channelEmail": "sofia.delfino.valtech@gmail.com",
+        "campaign": [
+            {
+                "validateAccounts": true,
+                "product": {
+                    "id": 3800,
+                    "branchId": 9,
+                    "channelId": 1,
+                    "subChannelId": 100
+                }
+            }
+        ]
+    },
+    "transaction": {
+        "principal": "user",
+        "credential": "QWEQE324234234WERwerwereewrwrw$$%^%&&@@#####ewrew",
+        "trxId": "32423",
+        "trxTimeStamp": 1396497999000,
+        "userId": "usuario",
+        "roleId": "1"
+    }
+}

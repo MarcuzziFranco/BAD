@@ -1,6 +1,28 @@
 {
-    "name": "Franco",
-    "lastName": "Macuzzi",
-    "age": 30,
-    "birthDate": "1993-09-02"
+  "name": "Franco",
+  "lastName": "Macuzzi",
+  "age": 30,
+  "birthDate": "1993-09-02",
+  "value": 111.22,
+  "adress": {
+    "street": "mermelada",
+    "number": 1234,
+    "rol": {
+      "id": 1
+    }
+  },
+  "campains": [
+    {
+      "branch": 1,
+      "product": "aaaa",
+      "key": "c3a0ecd9-df62-44a6-998a-eb9f7df85656"
+    },
+    {
+
+      "branch": 1,
+      "product": "bbbb",
+      "key": "0ea25d5e-9c0c-11ee-8c90-0242ac120002"
+    }
+  ],
+  "test": "test"
 }
