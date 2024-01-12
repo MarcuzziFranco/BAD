@@ -1,7 +1,5 @@
 ﻿using BAD.JsonReader;
 using Newtonsoft.Json.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Text.Json.Nodes;
 
 namespace BAD.Generator;
 
@@ -20,7 +18,15 @@ public class GeneratorJson
     {
         foreach (var property in jsonData.Properties())
         {
+            var key = property.Path;
             JToken value = property.Value;
+
+            var defaultValue = DefaultValue(key);
+            if (defaultValue != null)
+            {
+                property.Value = defaultValue;
+                continue;
+            }
 
             JTokenType typeValue = Analyzer.GetType(value);
             if (typeValue == JTokenType.String)
@@ -40,10 +46,10 @@ public class GeneratorJson
             {
                 property.Value = GeneratorBoolean.RandomBoolean();
             }
-             else if (value.Type == JTokenType.Float)
-             {
-                property.Value = GenerateFloat.FloatRandom(100, 1000,4);
-             }
+            else if (value.Type == JTokenType.Float)
+            {
+                property.Value = GenerateFloat.FloatRandom(100, 1000, 4);
+            }
             else if (typeValue == JTokenType.Date)
             {
                 property.Value = GeneratorDateTime.RandomDatetime("1993-09-02", "1995-09-02", "O");
@@ -60,8 +66,14 @@ public class GeneratorJson
                 }
                 else GenerateValue(property.Value);
             }
-
         }
         return jsonData;
     }
+
+    private static dynamic? DefaultValue(string keyJson)
+    {
+        if (keyJson == "userId") return 1;
+        return null;
+    }
+
 }

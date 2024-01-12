@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace BAD.Generator;
+﻿namespace BAD.Generator;
 
 public class GeneratorInteger : IGenerator
 {
