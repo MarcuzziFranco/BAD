@@ -17,7 +17,7 @@ public class Analyzer
         // Obtener la lista de valores
         var values = jsonObject.Values().ToList();
         // Imprimir la lista de valores
-        Console.WriteLine("Lista de valores json:");
+        Console.WriteLine("List value json:");
         foreach (var value in values)
         {
             Console.WriteLine(value);
@@ -29,7 +29,7 @@ public class Analyzer
     public void PrintListKeys()
     {
         var keys = jsonObject.Properties().Select(p => p.Name).ToList();
-        Console.WriteLine("Lista Claves json:");
+        Console.WriteLine("List value json:");
         foreach (var key in keys)
         {
             Console.WriteLine(key);
@@ -42,7 +42,7 @@ public class Analyzer
         // Obtener la lista de valores
         var values = jsonObject.Values().ToList();
         // Conocer el tipo de cada valor
-        Console.WriteLine("Tipos de valores json:");
+        Console.WriteLine("Types value json:");
         foreach (var value in values)
         {
             string valueType = GetUnderlyingType(value);
@@ -125,15 +125,14 @@ public class Analyzer
             {
                 return JTokenType.Null;
             }
-           else
+            else
             {
-                // Otros tipos de datos primitivos (AGREGAR ESTOS DATOS)
+                // Other types (AGREGAR ESTOS DATOS)
                 return JTokenType.None;
             }
         }
         else
         {
-            // Si es un objeto o una matriz, devolver el tipo Object
             return JTokenType.Object;
         }
     }
