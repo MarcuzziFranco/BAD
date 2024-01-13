@@ -1,4 +1,5 @@
-﻿using BAD.JsonReader;
+﻿using BAD.Generator.Configurations;
+using BAD.JsonReader;
 using Newtonsoft.Json.Linq;
 
 namespace BAD.Generator;
@@ -72,7 +73,33 @@ public class GeneratorJson
 
     private static dynamic? DefaultValue(string keyJson)
     {
-        if (keyJson == "userId") return 1;
+        Dictionary<string, DefaultValueConfig> DefaultValuesOperations = new Dictionary<string, DefaultValueConfig>();
+
+        DefaultValuesOperations.Add("userId",
+            new DefaultValueConfig
+            {
+                Type = JTokenType.Integer,
+                Value = 3,
+                Operation = EnumOperations.NotChange
+
+            });
+
+
+        DefaultValuesOperations.Add("body",
+            new DefaultValueConfig
+            {
+                Type = JTokenType.String,
+                Value = "mermelada",
+                Operation = EnumOperations.Replace
+
+            });
+
+        if (DefaultValuesOperations.ContainsKey(keyJson))
+        {
+            DefaultValueConfig operationConfig = DefaultValuesOperations[keyJson];
+            return operationConfig.Value;
+        }
+
         return null;
     }
 

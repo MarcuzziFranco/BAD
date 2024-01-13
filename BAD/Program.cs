@@ -21,7 +21,6 @@
 
 using BAD.Generator;
 using BAD.JsonReader;
-using BAD.Services;
 
 string pathJson = "C:\\Users\\Franc\\PERSONAL\\NET\\BAD\\BAD\\jsonfiles\\test3.json";
 int count = 1;
@@ -42,8 +41,8 @@ for (int i = 0; i < count; i++)
 foreach (var item in listJsonGenerate)
 {
     Console.WriteLine(item);
-    dynamic response = await ExternalResources.PostAsync<dynamic, dynamic>("https://jsonplaceholder.typicode.com/posts", item);
-    Console.WriteLine(response);
+    // dynamic response = await ExternalResources.PostAsync<dynamic, dynamic>("https://jsonplaceholder.typicode.com/posts", item);
+    //Console.WriteLine(response);
 }
 
 
