@@ -4,8 +4,6 @@ namespace BAD.Generator.Configurations;
 
 public class DefaultValueConfig
 {
-    public JTokenType? Type { get; set; }
+    public JTokenType? TypeDefault { get; set; }
     public dynamic? Value { get; set; }
-
-    public EnumOperations Operation;
 }
