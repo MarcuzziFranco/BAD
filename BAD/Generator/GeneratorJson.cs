@@ -1,10 +1,18 @@
-﻿using BAD.JsonReader;
+﻿using BAD.Generator.Configurations;
+using BAD.JsonReader;
 using Newtonsoft.Json.Linq;
 
 namespace BAD.Generator;
 
 public class GeneratorJson
 {
+    public static Dictionary<string, DefaultValueConfig> DefaultValuesOperations = new Dictionary<string, DefaultValueConfig>();
+
+    public static void AddNewDefaultValue(string keyJson, DefaultValueConfig defaultValueConfig)
+    {
+        DefaultValuesOperations.Add(keyJson, defaultValueConfig);
+    }
+
     public static dynamic GeneratorJsonValues(dynamic json)
     {
         var jsonObject = JObject.Parse(json);
@@ -18,6 +26,7 @@ public class GeneratorJson
     {
         foreach (var property in jsonData.Properties())
         {
+            #region Logic for setting values to default
             var key = property.Path;
             JToken value = property.Value;
 
@@ -27,7 +36,9 @@ public class GeneratorJson
                 property.Value = defaultValue;
                 continue;
             }
+            #endregion
 
+            #region Logic to generate random values
             JTokenType typeValue = Analyzer.GetType(value);
             if (typeValue == JTokenType.String)
             {
@@ -67,13 +78,33 @@ public class GeneratorJson
                 else GenerateValue(property.Value);
             }
         }
+        #endregion
         return jsonData;
     }
 
     private static dynamic? DefaultValue(string keyJson)
     {
-        if (keyJson == "userId") return 1;
+        if (DefaultValuesOperations.ContainsKey(keyJson))
+        {
+            DefaultValueConfig operationConfig = DefaultValuesOperations[keyJson];
+            return GettingDefaultValueOperations(ref operationConfig);
+        }
         return null;
     }
+
+    private static dynamic GettingDefaultValueOperations(ref DefaultValueConfig defaultValueConfig)
+    {
+        if (defaultValueConfig.TypeDefault == JTokenType.Array)
+        {
+            var valueReturn = defaultValueConfig.Value[0];
+            var head = valueReturn;
+            Array.Copy(defaultValueConfig.Value, 1, defaultValueConfig.Value, 0, defaultValueConfig.Value.Length - 1);
+            defaultValueConfig.Value[defaultValueConfig.Value.Length - 1] = head;
+            return valueReturn;
+        }
+        return defaultValueConfig.Value;
+    }
+
+
 
 }
