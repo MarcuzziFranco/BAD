@@ -18,14 +18,15 @@
 * 16- Setting diccionary with default value  ✔️
 * 17- Execute POST request towards a services with a generate Json 
 * 18- Generate a new json by setting a list of values ​​for a specific key  ✔️
+* 19- Generate principal menu console
+* 20- Generate option 1 (select json base to generate)
+* 21- Generate option 2 (select total json to generate)
+* 22- Generate option 3 (select output menu for json generate and format (one txt output,one txt for json))
+* 23- Generat option 4 (menu define value for default json)
  * ***/
 
-using BAD.Generator;
-using BAD.Generator.Configurations;
-using BAD.JsonReader;
-using Newtonsoft.Json.Linq;
 
-string pathJson = "C:\\Users\\Franc\\PERSONAL\\NET\\BAD\\BAD\\jsonfiles\\test3.json";
+/*string pathJson = "C:\\Users\\Franc\\PERSONAL\\NET\\BAD\\BAD\\jsonfiles\\test3.json";
 int count = 6;
 
 var json = File.ReadAllText(pathJson);
@@ -50,6 +51,80 @@ foreach (var item in listJsonGenerate)
     Console.WriteLine(item);
     // dynamic response = await ExternalResources.PostAsync<dynamic, dynamic>("https://jsonplaceholder.typicode.com/posts", item);
     // Console.WriteLine(response);
+}*/
+
+class Program
+{
+    static int currentOption = 0;
+    static void Main()
+    {
+        ConsoleKeyInfo key;
+        do
+        {
+            Console.Clear();
+            DisplayMenu();
+            key = Console.ReadKey();
+
+            // Manejar las teclas de flecha para moverse por las opciones
+            if (key.Key == ConsoleKey.UpArrow && currentOption > 0)
+            {
+                currentOption--;
+            }
+            else if (key.Key == ConsoleKey.DownArrow && currentOption < 3) // Ajusta el número según el número de opciones en tu menú
+            {
+                currentOption++;
+            }
+
+        } while (key.Key != ConsoleKey.Enter);
+
+        // Al presionar Enter, realiza la acción correspondiente a la opción seleccionada
+        PerformAction();
+    }
+
+    static void DisplayMenu()
+    {
+        Console.WriteLine("*----------------------------*");
+        Console.WriteLine("Generador de json");
+
+        for (int i = 0; i < 4; i++) // Ajusta el número según el número de opciones en tu menú
+        {
+            if (i == currentOption)
+            {
+                Console.BackgroundColor = ConsoleColor.Gray;
+                Console.ForegroundColor = ConsoleColor.Black;
+            }
+
+            Console.WriteLine($"{GetMenuOption(i)}");
+
+            Console.ResetColor();
+        }
+    }
+
+    static string GetMenuOption(int option)
+    {
+        switch (option)
+        {
+            case 0:
+                return "Seleccionar archivo base";
+            case 1:
+                return "Definir datos por defecto";
+            case 2:
+                return "Cantidad de json a generar";
+            case 3:
+                return "Definir formato salida";
+            default:
+                return "";
+        }
+    }
+
+    static void PerformAction()
+    {
+        Console.Clear();
+        Console.WriteLine($"Realizando acción correspondiente a la opción seleccionada: {GetMenuOption(currentOption)}");
+        // Aquí puedes agregar el código para cada opción del menú
+        Console.ReadLine(); // Pausa para que puedas ver el resultado
+    }
+
 }
 
 

@@ -101,7 +101,6 @@ public class GeneratorJson
             Array.Copy(defaultValueConfig.Value, 1, defaultValueConfig.Value, 0, defaultValueConfig.Value.Length - 1);
             defaultValueConfig.Value[defaultValueConfig.Value.Length - 1] = head;
             return valueReturn;
-
         }
         return defaultValueConfig.Value;
     }
