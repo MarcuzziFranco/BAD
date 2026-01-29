@@ -1,18 +1,36 @@
-﻿namespace BAD.Generator;
+namespace BAD.Generator;
 
-public class GenerateFloat: IGenerator
+public class GenerateFloat : IGenerator<float>
 {
-    public static float FloatRandom(float min, float max, int numberDecimal)
+    private static readonly Random _random = new();
+    private int _decimalPlaces = 2;
+
+    public int DecimalPlaces
     {
-        if (min >= max || numberDecimal < 0)
+        get => _decimalPlaces;
+        set => _decimalPlaces = value < 0 ? 0 : value;
+    }
+
+    public float Generate()
+    {
+        return Generate(0f, 100f);
+    }
+
+    public float Generate(float min, float max)
+    {
+        if (min >= max)
         {
-            throw new ArgumentException("Invalid arguments");
+            throw new ArgumentException("El valor mínimo debe ser menor que el máximo");
         }
 
-        Random random = new Random();
-        double valueRandom = (random.NextDouble() * (max - min)) + min;
-        float result = (float)Math.Round(valueRandom, numberDecimal);
+        double valueRandom = (_random.NextDouble() * (max - min)) + min;
+        return (float)Math.Round(valueRandom, _decimalPlaces);
+    }
 
-        return result;
+    // Método estático para compatibilidad con código existente
+    public static float FloatRandom(float min, float max, int numberDecimal)
+    {
+        var generator = new GenerateFloat { DecimalPlaces = numberDecimal };
+        return generator.Generate(min, max);
     }
 }

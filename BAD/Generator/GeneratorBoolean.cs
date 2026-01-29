@@ -1,10 +1,17 @@
-﻿namespace BAD.Generator;
+namespace BAD.Generator;
 
-public class GeneratorBoolean : IGenerator
+public class GeneratorBoolean : ISimpleGenerator<bool>
 {
+    private static readonly Random _random = new();
+
+    public bool Generate()
+    {
+        return _random.Next(0, 2) == 0;
+    }
+
+    // Método estático para compatibilidad con código existente
     public static bool RandomBoolean()
     {
-        Random random = new();
-        return random.Next(0, 2) == 0;
+        return new GeneratorBoolean().Generate();
     }
 }

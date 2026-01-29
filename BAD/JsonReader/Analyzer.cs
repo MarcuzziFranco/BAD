@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace BAD.JsonReader;
 
@@ -59,7 +59,7 @@ public class Analyzer
             {
                 return "DateTime";
             }
-            else if (DateTime.TryParse(jValue.Value.ToString(), out _))
+            else if (jValue.Value != null && DateTime.TryParse(jValue.Value.ToString(), out _))
             {
                 // Intentar parsear el string como DateTime
                 return "DateTime";
@@ -100,7 +100,7 @@ public class Analyzer
             {
                 return JTokenType.Date;
             }
-            else if (DateTime.TryParse(jValue.Value.ToString(), out _))
+            else if (jValue.Value != null && DateTime.TryParse(jValue.Value.ToString(), out _))
             {
                 // Intentar parsear el string como DateTime
                 return JTokenType.Date;

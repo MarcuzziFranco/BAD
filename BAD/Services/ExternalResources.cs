@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System.Text;
 
 namespace BAD.Services;
@@ -28,7 +28,7 @@ public class ExternalResources
             var response = await client.GetAsync(completeUrl);
             response.EnsureSuccessStatusCode();
             var stringResponse = await response.Content.ReadAsStringAsync();
-            return JsonConvert.DeserializeObject<TResponse>(stringResponse);
+            return JsonConvert.DeserializeObject<TResponse>(stringResponse)!;
         }
     }
 
@@ -47,7 +47,7 @@ public class ExternalResources
             var response = await client.PostAsync(url, stringContent);
             response.EnsureSuccessStatusCode();
             var stringResponse = await response.Content.ReadAsStringAsync();
-            return JsonConvert.DeserializeObject<TResponse>(stringResponse);
+            return JsonConvert.DeserializeObject<TResponse>(stringResponse)!;
         }
     }
 }
