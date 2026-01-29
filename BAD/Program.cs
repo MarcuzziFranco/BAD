@@ -10,6 +10,7 @@
 * 5- Ejecutar requests GET/POST masivos ✔️
 * 6- Guardar resultados de ejecución ✔️
 * 7- Menú de consola interactivo ✔️
+* 8- Presets de mutación ✔️
 ***/
 
 using BAD.ConsoleUI;
@@ -17,6 +18,7 @@ using BAD.Generator;
 using BAD.Generator.Configurations;
 using BAD.JsonReader;
 using BAD.Models;
+using BAD.Presets;
 using BAD.Services;
 using Newtonsoft.Json.Linq;
 
@@ -26,6 +28,7 @@ class Program
 {
     private static readonly AppState _state = new();
     private static readonly ResultStorage _storage = new();
+    private static readonly PresetManager _presetManager = new();
     private static readonly string _jsonFilesPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "jsonfiles");
 
     static async Task Main(string[] args)
@@ -38,12 +41,13 @@ class Program
             {
                 "1. Seleccionar archivo JSON base",
                 "2. Configurar valores por defecto",
-                "3. Definir cantidad a generar",
-                "4. Definir formato de salida",
-                "5. Generar JSONs",
-                "6. Ejecutar contra endpoint",
-                "7. Ver estado actual",
-                "8. Salir"
+                "3. Aplicar preset de mutación",
+                "4. Definir cantidad a generar",
+                "5. Definir formato de salida",
+                "6. Generar JSONs",
+                "7. Ejecutar contra endpoint",
+                "8. Ver estado actual",
+                "9. Salir"
             };
 
             int selection = ConsoleHelper.ShowMenu("BAD - Generador de JSON para Testing", mainOptions);
@@ -57,21 +61,24 @@ class Program
                     ConfigureDefaults();
                     break;
                 case 2:
-                    SetGenerateCount();
+                    ApplyPreset();
                     break;
                 case 3:
-                    SetOutputFormat();
+                    SetGenerateCount();
                     break;
                 case 4:
-                    GenerateJsons();
+                    SetOutputFormat();
                     break;
                 case 5:
-                    await ExecuteAgainstEndpoint();
+                    GenerateJsons();
                     break;
                 case 6:
-                    ShowCurrentState();
+                    await ExecuteAgainstEndpoint();
                     break;
                 case 7:
+                    ShowCurrentState();
+                    break;
+                case 8:
                     if (ConsoleHelper.Confirm("¿Está seguro que desea salir?"))
                     {
                         ConsoleHelper.WriteInfo("¡Hasta luego!");
@@ -211,6 +218,127 @@ class Program
             var selectedItem = keysWithTypes[selected];
             ConfigureProperty(selectedItem.Key, selectedItem.Type, selectedItem.Value);
         }
+    }
+
+    /// <summary>
+    /// Opción 3: Aplicar preset de mutación
+    /// </summary>
+    static void ApplyPreset()
+    {
+        if (!_state.HasJsonLoaded)
+        {
+            ConsoleHelper.WriteWarning("Primero debe seleccionar un archivo JSON base");
+            ConsoleHelper.WaitForKey();
+            return;
+        }
+
+        Console.Clear();
+        ConsoleHelper.WriteHeader("Aplicar Preset de Mutación");
+        ConsoleHelper.WriteInfo("Los presets aplican configuraciones masivas a todos los campos del JSON");
+        ConsoleHelper.WriteSeparator();
+
+        // Obtener presets agrupados por categoría
+        var groupedPresets = _presetManager.GetPresetsGroupedByCategory();
+        var allPresets = _presetManager.GetAllPresets();
+
+        // Construir opciones del menú
+        var menuOptions = new List<string>();
+        
+        foreach (var group in groupedPresets)
+        {
+            menuOptions.Add($"--- {group.Category} ---");
+            foreach (var preset in group.Presets)
+            {
+                menuOptions.Add($"  {preset.Name}: {preset.Description}");
+            }
+        }
+        menuOptions.Add("<< Volver");
+
+        int selected = ConsoleHelper.ShowMenu("Seleccione un preset", menuOptions.ToArray());
+
+        // Si seleccionó volver
+        if (selected == menuOptions.Count - 1)
+        {
+            return;
+        }
+
+        // Encontrar el preset seleccionado (saltando los separadores de categoría)
+        int presetIndex = 0;
+        int currentMenuIndex = 0;
+        IPreset? selectedPreset = null;
+
+        foreach (var group in groupedPresets)
+        {
+            currentMenuIndex++; // Saltar el separador de categoría
+            foreach (var preset in group.Presets)
+            {
+                if (currentMenuIndex == selected)
+                {
+                    selectedPreset = preset;
+                    break;
+                }
+                currentMenuIndex++;
+                presetIndex++;
+            }
+            if (selectedPreset != null) break;
+        }
+
+        if (selectedPreset == null)
+        {
+            return;
+        }
+
+        // Confirmar aplicación
+        Console.Clear();
+        ConsoleHelper.WriteHeader($"Preset: {selectedPreset.Name}");
+        ConsoleHelper.WriteInfo($"Descripción: {selectedPreset.Description}");
+        ConsoleHelper.WriteInfo($"Categoría: {selectedPreset.Category}");
+        ConsoleHelper.WriteSeparator();
+        ConsoleHelper.WriteWarning("Esto reemplazará todas las configuraciones actuales.");
+
+        if (!ConsoleHelper.Confirm("¿Desea aplicar este preset?"))
+        {
+            return;
+        }
+
+        try
+        {
+            var jsonObject = JObject.Parse(_state.JsonContent!);
+            _presetManager.ApplyPreset(selectedPreset, jsonObject);
+
+            // Limpiar JSONs generados anteriormente
+            _state.ClearGeneratedJsons();
+
+            Console.Clear();
+            ConsoleHelper.WriteSuccess($"Preset '{selectedPreset.Name}' aplicado correctamente");
+            ConsoleHelper.WriteSeparator();
+
+            // Mostrar configuraciones aplicadas
+            if (GeneratorJson.DefaultValuesOperations.Count > 0)
+            {
+                ConsoleHelper.WriteInfo($"Se configuraron {GeneratorJson.DefaultValuesOperations.Count} campos:");
+                int count = 0;
+                foreach (var config in GeneratorJson.DefaultValuesOperations.Take(10))
+                {
+                    Console.WriteLine($"  - {config.Key}: {config.Value.GetDescription()}");
+                    count++;
+                }
+                if (GeneratorJson.DefaultValuesOperations.Count > 10)
+                {
+                    Console.WriteLine($"  ... y {GeneratorJson.DefaultValuesOperations.Count - 10} más");
+                }
+            }
+            else
+            {
+                ConsoleHelper.WriteInfo("Preset aplicado (modo aleatorio - sin configuraciones fijas)");
+            }
+        }
+        catch (Exception ex)
+        {
+            ConsoleHelper.WriteError($"Error al aplicar preset: {ex.Message}");
+        }
+
+        ConsoleHelper.WaitForKey();
     }
 
     /// <summary>
