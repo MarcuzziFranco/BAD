@@ -1,13 +1,34 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import Editor from '@monaco-editor/react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { templatesApi } from '@/services/api';
+import type { JsonTemplate } from '@/services/api';
+import { Pencil, Eye, Trash2, Search, Plus } from 'lucide-react';
 
 export function Templates() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState<JsonTemplate | null>(null);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ['templates'],
@@ -28,14 +49,26 @@ export function Templates() {
     }
   };
 
-  const getFieldCount = (content: string): number => {
+  const handleView = (template: JsonTemplate) => {
+    setSelectedTemplate(template);
+    setIsSheetOpen(true);
+  };
+
+  const formatId = (id: number): string => {
+    return `#${id.toString().padStart(3, '0')}`;
+  };
+
+  const formatJsonContent = (content: string): string => {
     try {
-      const json = JSON.parse(content);
-      return Object.keys(json).length;
+      return JSON.stringify(JSON.parse(content), null, 2);
     } catch {
-      return 0;
+      return content;
     }
   };
+
+  const filteredTemplates = templates?.filter((template) =>
+    template.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -47,88 +80,130 @@ export function Templates() {
           </p>
         </div>
         <Button onClick={() => navigate('/template-new')}>
+          <Plus className="w-4 h-4 mr-2" />
           Nuevo Template
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Cargando templates...</p>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nombre..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
         </div>
-      ) : templates && templates.length > 0 ? (
-        <div className="h-[calc(100vh-200px)] overflow-auto pr-2">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {templates.map((template) => (
-              <Card 
-                key={template.id} 
-                className="cursor-pointer hover:border-primary transition-colors"
-                onClick={() => navigate(`/template-edit/${template.id}`)}
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg truncate pr-2">
-                      {template.name}
-                    </CardTitle>
-                    <Badge variant="secondary">
-                      {getFieldCount(template.content)} campos
-                    </Badge>
-                  </div>
-                  {template.description && (
-                    <p className="text-sm text-muted-foreground line-clamp-2">
-                      {template.description}
-                    </p>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <pre className="bg-secondary p-3 rounded text-xs overflow-hidden max-h-32 text-muted-foreground">
-                    {(() => {
-                      try {
-                        return JSON.stringify(JSON.parse(template.content), null, 2);
-                      } catch {
-                        return template.content;
-                      }
-                    })()}
-                  </pre>
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t">
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(template.updatedAt).toLocaleDateString()}
-                    </span>
-                    <div className="flex gap-2">
+        {searchTerm && (
+          <Button variant="ghost" size="sm" onClick={() => setSearchTerm('')}>
+            Limpiar
+          </Button>
+        )}
+      </div>
+
+      <div className="border rounded-lg">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-20">ID</TableHead>
+              <TableHead>Nombre</TableHead>
+              <TableHead className="hidden md:table-cell">Descripción</TableHead>
+              <TableHead className="w-32 text-right">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8">
+                  <span className="text-muted-foreground">Cargando templates...</span>
+                </TableCell>
+              </TableRow>
+            ) : filteredTemplates && filteredTemplates.length > 0 ? (
+              filteredTemplates.map((template) => (
+                <TableRow key={template.id}>
+                  <TableCell className="font-mono text-sm text-muted-foreground">
+                    {formatId(template.id)}
+                  </TableCell>
+                  <TableCell className="font-medium">{template.name}</TableCell>
+                  <TableCell className="hidden md:table-cell text-muted-foreground">
+                    {template.description || '-'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
                       <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/template-edit/${template.id}`);
-                        }}
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleView(template)}
+                        title="Ver JSON"
                       >
-                        Editar
+                        <Eye className="w-4 h-4" />
                       </Button>
                       <Button
-                        variant="destructive"
-                        size="sm"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate(`/template-edit/${template.id}`)}
+                        title="Editar"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={(e) => handleDelete(template.id, e)}
                         disabled={deleteMutation.isPending}
+                        title="Eliminar"
+                        className="text-destructive hover:text-destructive"
                       >
-                        Eliminar
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center py-8">
+                  <span className="text-muted-foreground">
+                    {searchTerm ? 'No se encontraron templates' : 'No hay templates guardados'}
+                  </span>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="w-[500px] sm:w-[600px] sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>{selectedTemplate?.name}</SheetTitle>
+            <SheetDescription>
+              {selectedTemplate?.description || 'Vista previa del template JSON'}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-6 h-[calc(100vh-180px)]">
+            {selectedTemplate && (
+              <Editor
+                height="100%"
+                defaultLanguage="json"
+                value={formatJsonContent(selectedTemplate.content)}
+                theme="vs-dark"
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: false },
+                  fontSize: 13,
+                  lineNumbers: 'on',
+                  scrollBeyondLastLine: false,
+                  automaticLayout: true,
+                  tabSize: 2,
+                  wordWrap: 'on',
+                }}
+              />
+            )}
           </div>
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center h-64">
-            <p className="text-muted-foreground mb-4">No hay templates guardados</p>
-            <Button onClick={() => navigate('/template-new')}>
-              Crear primer template
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
