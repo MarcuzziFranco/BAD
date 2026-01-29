@@ -1,54 +1,73 @@
-﻿using System;
+using System;
 using System.Text.RegularExpressions;
 
 namespace BAD.Generator;
 
-public class GeneratorString : IGenerator
+public class GeneratorString : ISimpleGenerator<string>
 {
-    private static string seedLowerCase = "abcdefghijklmnopqrstuvwxyz";
-    private static string seedToUpperCase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    private static string seedAllCase = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    private static readonly Random _random = new();
+    private static readonly string SeedLowerCase = "abcdefghijklmnopqrstuvwxyz";
+    private static readonly string SeedUpperCase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    private static readonly string SeedAllCase = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    private static readonly string SeedAlphanumeric = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
-    private static string pattern = @"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$";
+    private static readonly string UuidPattern = @"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$";
 
+    public int DefaultLength { get; set; } = 10;
+    public bool BeginUpperCase { get; set; } = true;
+    public bool AllUpperCase { get; set; } = false;
 
-    private static string StringRandom(string seed, int lengthMax, bool beginUpperCase, bool allUpperCase)
+    public string Generate()
     {
-        Random random = new();
+        return StringRandom(SeedAllCase, DefaultLength, BeginUpperCase, AllUpperCase);
+    }
 
-        char[] result = new char[lengthMax];
-        for (int i = 0; i < lengthMax; i++)
+    private static string StringRandom(string seed, int length, bool beginUpperCase, bool allUpperCase)
+    {
+        char[] result = new char[length];
+        for (int i = 0; i < length; i++)
         {
-            result[i] = seed[random.Next(seed.Length)];
+            result[i] = seed[_random.Next(seed.Length)];
         }
         string randomString = new string(result);
 
-        if (allUpperCase) randomString = randomString.ToUpper();
-
-        if (beginUpperCase && !string.IsNullOrEmpty(randomString)) randomString = char.ToUpper(randomString[0]) + randomString.Substring(1);
+        if (allUpperCase)
+        {
+            randomString = randomString.ToUpper();
+        }
+        else if (beginUpperCase && !string.IsNullOrEmpty(randomString))
+        {
+            randomString = char.ToUpper(randomString[0]) + randomString.Substring(1);
+        }
 
         return randomString;
-
     }
+
+    // Métodos estáticos para compatibilidad con código existente
     public static string StringRandomLowerCase(int lengthMax, bool beginUpperCase, bool allUpperCase)
     {
-        return StringRandom(seedLowerCase, lengthMax, beginUpperCase, allUpperCase);
+        return StringRandom(SeedLowerCase, lengthMax, beginUpperCase, allUpperCase);
     }
 
     public static string StringRandomToUpperCase(int lengthMax, bool beginUpperCase, bool allUpperCase)
     {
-        return StringRandom(seedToUpperCase, lengthMax, beginUpperCase, allUpperCase);
+        return StringRandom(SeedUpperCase, lengthMax, beginUpperCase, allUpperCase);
     }
 
     public static string StringRandomAllCase(int lengthMax, bool beginUpperCase, bool allUpperCase)
     {
-        return StringRandom(seedAllCase, lengthMax, beginUpperCase, allUpperCase);
+        return StringRandom(SeedAllCase, lengthMax, beginUpperCase, allUpperCase);
+    }
+
+    public static string StringRandomAlphanumeric(int lengthMax, bool beginUpperCase, bool allUpperCase)
+    {
+        return StringRandom(SeedAlphanumeric, lengthMax, beginUpperCase, allUpperCase);
     }
 
     public static bool IsUUID(string value)
     {
         if (string.IsNullOrEmpty(value)) return false;
-        else return Regex.IsMatch(value, pattern);
+        return Regex.IsMatch(value, UuidPattern);
     }
 
     public static Guid StringRandomUUID()

@@ -1,0 +1,22 @@
+{
+    "name": "Franco",
+    "lastName": "Macuzzi",
+    "age": 30,
+    "birthDate": "1993-09-02",
+    "value": 111.22,
+    "adress": {
+      "street": "mermelada",
+      "number": 1234,
+      "rol": {
+        "id": 1,
+        "active": true
+      }
+    },
+    "cosas": [
+      {
+        "mueble": 1,
+        "material": "madera"
+      }
+    ],
+    "test": "test"
+  }

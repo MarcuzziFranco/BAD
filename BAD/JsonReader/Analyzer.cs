@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace BAD.JsonReader;
 
@@ -59,7 +59,7 @@ public class Analyzer
             {
                 return "DateTime";
             }
-            else if (DateTime.TryParse(jValue.Value.ToString(), out _))
+            else if (jValue.Value != null && DateTime.TryParse(jValue.Value.ToString(), out _))
             {
                 // Intentar parsear el string como DateTime
                 return "DateTime";
@@ -100,22 +100,27 @@ public class Analyzer
             {
                 return JTokenType.Date;
             }
-            else if (DateTime.TryParse(jValue.Value.ToString(), out _))
+            else if (jValue.Value is string strValue)
             {
-                // Intentar parsear el string como DateTime
-                return JTokenType.Date;
-            }
-            else if (jValue.Value is string)
-            {
+                // Verificar si es un GUID
+                if (IsGuid(strValue))
+                {
+                    return JTokenType.Guid;
+                }
+                // Verificar si es una fecha
+                if (DateTime.TryParse(strValue, out _))
+                {
+                    return JTokenType.Date;
+                }
                 return JTokenType.String;
             }
-            else if (jValue.Value is int)
+            else if (jValue.Value is int || jValue.Value is long)
             {
                 return JTokenType.Integer;
             }
-            else if (jValue.Value is long)
+            else if (jValue.Value is float || jValue.Value is double || jValue.Value is decimal)
             {
-                return JTokenType.Integer;
+                return JTokenType.Float;
             }
             else if (jValue.Value is bool)
             {
@@ -127,14 +132,27 @@ public class Analyzer
             }
             else
             {
-                // Other types (AGREGAR ESTOS DATOS)
-                return JTokenType.None;
+                // Intentar detectar tipo por el JTokenType nativo
+                return jValue.Type;
             }
+        }
+        else if (token is JArray)
+        {
+            return JTokenType.Array;
         }
         else
         {
             return JTokenType.Object;
         }
+    }
+
+    /// <summary>
+    /// Verifica si un string es un GUID válido
+    /// </summary>
+    public static bool IsGuid(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return false;
+        return Guid.TryParse(value, out _);
     }
 
 }
