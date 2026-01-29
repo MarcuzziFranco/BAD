@@ -225,6 +225,7 @@ class Program
             JTokenType.Float => "decimal",
             JTokenType.Boolean => "booleano",
             JTokenType.Date => "fecha",
+            JTokenType.Guid => "GUID",
             JTokenType.Null => "null",
             JTokenType.Object => "objeto",
             JTokenType.Array => "array",
@@ -256,147 +257,467 @@ class Program
         ConsoleHelper.WriteInfo($"Valor actual: {currentValue}");
         ConsoleHelper.WriteSeparator();
 
-        // Construir opciones según el tipo
-        var options = new List<string>
+        // Mostrar menú según el tipo
+        switch (type)
         {
-            "Reemplazar con valor fijo",
-            "Reemplazar con lista de valores (rotativo)"
-        };
-
-        // Agregar opción de rango solo para tipos numéricos y fechas
-        bool supportsRange = type == JTokenType.Integer || type == JTokenType.Float || type == JTokenType.Date;
-        if (supportsRange)
-        {
-            options.Add($"Generar aleatorio en rango ({GetTypeName(type)})");
+            case JTokenType.Boolean:
+                ConfigureBoolean(key);
+                break;
+            case JTokenType.Guid:
+                ConfigureGuid(key, currentValue.ToString());
+                break;
+            case JTokenType.Integer:
+            case JTokenType.Float:
+                ConfigureNumeric(key, type);
+                break;
+            case JTokenType.Date:
+                ConfigureDate(key);
+                break;
+            default:
+                ConfigureGeneric(key, type);
+                break;
         }
+    }
 
-        options.AddRange(new[]
+    /// <summary>
+    /// Configuración para valores booleanos
+    /// </summary>
+    static void ConfigureBoolean(string key)
+    {
+        var options = new[]
         {
-            "Forzar NULL",
+            "Aleatorio (true/false)",
+            "Forzar TRUE",
+            "Forzar FALSE",
+            "Lista de valores (rotativo)",
             "No cambiar (mantener original)",
+            "Forzar NULL",
             "Quitar configuración",
             "<< Volver"
-        });
+        };
 
-        int opSelected = ConsoleHelper.ShowMenu($"Operación para '{key}'", options.ToArray());
+        int selected = ConsoleHelper.ShowMenu($"Configurar booleano '{key}'", options);
 
-        // Ajustar índice si no soporta rango
-        int rangeOptionIndex = supportsRange ? 2 : -1;
-        int nullOptionIndex = supportsRange ? 3 : 2;
-        int noChangeOptionIndex = supportsRange ? 4 : 3;
-        int removeOptionIndex = supportsRange ? 5 : 4;
-        int backOptionIndex = supportsRange ? 6 : 5;
-
-        if (opSelected == 0) // Valor fijo
+        switch (selected)
         {
-            Console.Clear();
-            ConsoleHelper.WriteInfo($"Tipo original: {GetTypeName(type)}");
-            string value = ConsoleHelper.GetStringInput($"Ingrese el valor para '{key}'");
-            
-            var configValue = ConvertValueToType(value, type);
-            GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
-            {
-                Operation = EnumOperations.Replace,
-                TypeDefault = type,
-                Value = configValue
-            });
-            ConsoleHelper.WriteSuccess($"Configurado: {key} = {configValue}");
+            case 0: // Aleatorio
+                GeneratorJson.DefaultValuesOperations.Remove(key);
+                ConsoleHelper.WriteSuccess($"Configurado: {key} será aleatorio (true/false)");
+                break;
+            case 1: // TRUE
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.Replace,
+                    TypeDefault = JTokenType.Boolean,
+                    Value = true
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = TRUE");
+                break;
+            case 2: // FALSE
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.Replace,
+                    TypeDefault = JTokenType.Boolean,
+                    Value = false
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = FALSE");
+                break;
+            case 3: // Lista
+                ConfigureListValues(key, JTokenType.Boolean);
+                return; // Ya mostró mensaje
+            case 4: // No cambiar
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.NotChange
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} mantendrá su valor original");
+                break;
+            case 5: // NULL
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.ForceNull
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = NULL");
+                break;
+            case 6: // Quitar
+                GeneratorJson.DefaultValuesOperations.Remove(key);
+                ConsoleHelper.WriteSuccess($"Configuración eliminada para: {key}");
+                break;
+            case 7: // Volver
+                return;
         }
-        else if (opSelected == 1) // Lista de valores
+        ConsoleHelper.WaitForKey();
+    }
+
+    /// <summary>
+    /// Configuración para GUIDs
+    /// </summary>
+    static void ConfigureGuid(string key, string currentGuid)
+    {
+        var options = new[]
         {
-            Console.Clear();
-            ConsoleHelper.WriteInfo($"Tipo original: {GetTypeName(type)}");
-            Console.WriteLine("Ingrese los valores separados por coma:");
-            string? valuesInput = Console.ReadLine();
-            if (!string.IsNullOrEmpty(valuesInput))
-            {
-                var values = valuesInput.Split(',')
-                    .Select(v => ConvertValueToType(v.Trim(), type))
-                    .ToArray();
+            "Generar nuevo GUID aleatorio",
+            "Mantener GUID original",
+            "Valor GUID fijo",
+            "Lista de GUIDs (rotativo)",
+            "Forzar NULL",
+            "Quitar configuración",
+            "<< Volver"
+        };
+
+        int selected = ConsoleHelper.ShowMenu($"Configurar GUID '{key}'", options);
+
+        switch (selected)
+        {
+            case 0: // Nuevo aleatorio
+                GeneratorJson.DefaultValuesOperations.Remove(key);
+                ConsoleHelper.WriteSuccess($"Configurado: {key} generará un nuevo GUID cada vez");
+                break;
+            case 1: // Mantener original
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.NotChange
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} mantendrá el GUID original ({currentGuid})");
+                break;
+            case 2: // GUID fijo
+                Console.Clear();
+                string guid = ConsoleHelper.GetStringInput("Ingrese el GUID", Guid.NewGuid().ToString());
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.Replace,
+                    TypeDefault = JTokenType.Guid,
+                    Value = guid
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = {guid}");
+                break;
+            case 3: // Lista de GUIDs
+                Console.Clear();
+                ConsoleHelper.WriteInfo("Ingrese los GUIDs separados por coma (o deje vacío para generar automáticamente):");
+                Console.WriteLine("Cantidad de GUIDs a generar automáticamente [5]:");
+                string? input = Console.ReadLine();
+                
+                string[] guids;
+                if (int.TryParse(input, out int count) && count > 0)
+                {
+                    guids = Enumerable.Range(0, count).Select(_ => Guid.NewGuid().ToString()).ToArray();
+                }
+                else if (!string.IsNullOrEmpty(input))
+                {
+                    guids = input.Split(',').Select(g => g.Trim()).ToArray();
+                }
+                else
+                {
+                    guids = Enumerable.Range(0, 5).Select(_ => Guid.NewGuid().ToString()).ToArray();
+                }
+                
                 GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
                 {
                     Operation = EnumOperations.Replace,
                     TypeDefault = JTokenType.Array,
-                    Value = values
+                    Value = guids
                 });
-                ConsoleHelper.WriteSuccess($"Configurado: {key} rotará entre {values.Length} valores");
-            }
+                ConsoleHelper.WriteSuccess($"Configurado: {key} rotará entre {guids.Length} GUIDs");
+                break;
+            case 4: // NULL
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.ForceNull
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = NULL");
+                break;
+            case 5: // Quitar
+                GeneratorJson.DefaultValuesOperations.Remove(key);
+                ConsoleHelper.WriteSuccess($"Configuración eliminada para: {key}");
+                break;
+            case 6: // Volver
+                return;
         }
-        else if (supportsRange && opSelected == rangeOptionIndex) // Rango
+        ConsoleHelper.WaitForKey();
+    }
+
+    /// <summary>
+    /// Configuración para valores numéricos (enteros y decimales)
+    /// </summary>
+    static void ConfigureNumeric(string key, JTokenType type)
+    {
+        string typeName = GetTypeName(type);
+        var options = new[]
         {
-            Console.Clear();
-            ConsoleHelper.WriteInfo($"Configurar rango para {GetTypeName(type)}");
-            
-            if (type == JTokenType.Integer)
-            {
-                int min = ConsoleHelper.GetIntInput("Valor mínimo", int.MinValue, int.MaxValue, 0);
-                int max = ConsoleHelper.GetIntInput("Valor máximo", min, int.MaxValue, 100);
+            "Aleatorio en rango",
+            "Valor fijo",
+            "Lista de valores (rotativo)",
+            "No cambiar (mantener original)",
+            "Forzar NULL",
+            "Quitar configuración",
+            "<< Volver"
+        };
+
+        int selected = ConsoleHelper.ShowMenu($"Configurar {typeName} '{key}'", options);
+
+        switch (selected)
+        {
+            case 0: // Rango
+                Console.Clear();
+                if (type == JTokenType.Integer)
+                {
+                    int min = ConsoleHelper.GetIntInput("Valor mínimo", int.MinValue, int.MaxValue, 0);
+                    int max = ConsoleHelper.GetIntInput("Valor máximo", min, int.MaxValue, 100);
+                    GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                    {
+                        Operation = EnumOperations.RandomRange,
+                        TypeDefault = type,
+                        MinValue = min,
+                        MaxValue = max
+                    });
+                    ConsoleHelper.WriteSuccess($"Configurado: {key} aleatorio entre {min} y {max}");
+                }
+                else // Float
+                {
+                    Console.Write("Valor mínimo [0]: ");
+                    float min = float.TryParse(Console.ReadLine(), out var minVal) ? minVal : 0;
+                    Console.Write($"Valor máximo [{min + 100}]: ");
+                    float max = float.TryParse(Console.ReadLine(), out var maxVal) ? maxVal : min + 100;
+                    GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                    {
+                        Operation = EnumOperations.RandomRange,
+                        TypeDefault = type,
+                        MinValue = min,
+                        MaxValue = max
+                    });
+                    ConsoleHelper.WriteSuccess($"Configurado: {key} aleatorio entre {min} y {max}");
+                }
+                break;
+            case 1: // Valor fijo
+                Console.Clear();
+                string value = ConsoleHelper.GetStringInput($"Ingrese el valor {typeName}");
+                var configValue = ConvertValueToType(value, type);
                 GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
                 {
-                    Operation = EnumOperations.RandomRange,
+                    Operation = EnumOperations.Replace,
                     TypeDefault = type,
-                    MinValue = min,
-                    MaxValue = max
+                    Value = configValue
                 });
-                ConsoleHelper.WriteSuccess($"Configurado: {key} aleatorio entre {min} y {max}");
-            }
-            else if (type == JTokenType.Float)
-            {
-                Console.Write("Valor mínimo [0]: ");
-                float min = float.TryParse(Console.ReadLine(), out var minVal) ? minVal : 0;
-                Console.Write($"Valor máximo [{min + 100}]: ");
-                float max = float.TryParse(Console.ReadLine(), out var maxVal) ? maxVal : min + 100;
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = {configValue}");
+                break;
+            case 2: // Lista
+                ConfigureListValues(key, type);
+                return;
+            case 3: // No cambiar
                 GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
                 {
-                    Operation = EnumOperations.RandomRange,
-                    TypeDefault = type,
-                    MinValue = min,
-                    MaxValue = max
+                    Operation = EnumOperations.NotChange
                 });
-                ConsoleHelper.WriteSuccess($"Configurado: {key} aleatorio entre {min} y {max}");
-            }
-            else if (type == JTokenType.Date)
-            {
+                ConsoleHelper.WriteSuccess($"Configurado: {key} mantendrá su valor original");
+                break;
+            case 4: // NULL
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.ForceNull
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = NULL");
+                break;
+            case 5: // Quitar
+                GeneratorJson.DefaultValuesOperations.Remove(key);
+                ConsoleHelper.WriteSuccess($"Configuración eliminada para: {key}");
+                break;
+            case 6: // Volver
+                return;
+        }
+        ConsoleHelper.WaitForKey();
+    }
+
+    /// <summary>
+    /// Configuración para fechas
+    /// </summary>
+    static void ConfigureDate(string key)
+    {
+        var options = new[]
+        {
+            "Aleatorio en rango de fechas",
+            "Fecha fija",
+            "Lista de fechas (rotativo)",
+            "No cambiar (mantener original)",
+            "Forzar NULL",
+            "Quitar configuración",
+            "<< Volver"
+        };
+
+        int selected = ConsoleHelper.ShowMenu($"Configurar fecha '{key}'", options);
+
+        switch (selected)
+        {
+            case 0: // Rango
+                Console.Clear();
                 string minDate = ConsoleHelper.GetStringInput("Fecha mínima (yyyy-MM-dd)", "2020-01-01");
                 string maxDate = ConsoleHelper.GetStringInput("Fecha máxima (yyyy-MM-dd)", "2024-12-31");
                 GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
                 {
                     Operation = EnumOperations.RandomRange,
-                    TypeDefault = type,
+                    TypeDefault = JTokenType.Date,
                     MinValue = minDate,
                     MaxValue = maxDate
                 });
                 ConsoleHelper.WriteSuccess($"Configurado: {key} aleatorio entre {minDate} y {maxDate}");
-            }
-        }
-        else if (opSelected == nullOptionIndex) // Forzar NULL
-        {
-            GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
-            {
-                Operation = EnumOperations.ForceNull
-            });
-            ConsoleHelper.WriteSuccess($"Configurado: {key} = NULL");
-        }
-        else if (opSelected == noChangeOptionIndex) // No cambiar
-        {
-            GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
-            {
-                Operation = EnumOperations.NotChange
-            });
-            ConsoleHelper.WriteSuccess($"Configurado: {key} mantendrá su valor original");
-        }
-        else if (opSelected == removeOptionIndex) // Quitar
-        {
-            if (GeneratorJson.DefaultValuesOperations.Remove(key))
-            {
+                break;
+            case 1: // Fecha fija
+                Console.Clear();
+                string date = ConsoleHelper.GetStringInput("Ingrese la fecha (yyyy-MM-dd)", DateTime.Now.ToString("yyyy-MM-dd"));
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.Replace,
+                    TypeDefault = JTokenType.Date,
+                    Value = date
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = {date}");
+                break;
+            case 2: // Lista
+                ConfigureListValues(key, JTokenType.Date);
+                return;
+            case 3: // No cambiar
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.NotChange
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} mantendrá su valor original");
+                break;
+            case 4: // NULL
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.ForceNull
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = NULL");
+                break;
+            case 5: // Quitar
+                GeneratorJson.DefaultValuesOperations.Remove(key);
                 ConsoleHelper.WriteSuccess($"Configuración eliminada para: {key}");
-            }
+                break;
+            case 6: // Volver
+                return;
         }
-        else if (opSelected == backOptionIndex) // Volver
-        {
-            return;
-        }
+        ConsoleHelper.WaitForKey();
+    }
 
+    /// <summary>
+    /// Configuración genérica para otros tipos (strings, etc.)
+    /// </summary>
+    static void ConfigureGeneric(string key, JTokenType type)
+    {
+        var options = new[]
+        {
+            "Valor fijo",
+            "Lista de valores (rotativo)",
+            "No cambiar (mantener original)",
+            "Forzar NULL",
+            "Quitar configuración",
+            "<< Volver"
+        };
+
+        int selected = ConsoleHelper.ShowMenu($"Configurar '{key}'", options);
+
+        switch (selected)
+        {
+            case 0: // Valor fijo
+                Console.Clear();
+                string value = ConsoleHelper.GetStringInput($"Ingrese el valor");
+                var configValue = ConvertValueToType(value, type);
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.Replace,
+                    TypeDefault = type,
+                    Value = configValue
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = {configValue}");
+                break;
+            case 1: // Lista
+                ConfigureListValues(key, type);
+                return;
+            case 2: // No cambiar
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.NotChange
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} mantendrá su valor original");
+                break;
+            case 3: // NULL
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+                {
+                    Operation = EnumOperations.ForceNull
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} = NULL");
+                break;
+            case 4: // Quitar
+                GeneratorJson.DefaultValuesOperations.Remove(key);
+                ConsoleHelper.WriteSuccess($"Configuración eliminada para: {key}");
+                break;
+            case 5: // Volver
+                return;
+        }
+        ConsoleHelper.WaitForKey();
+    }
+
+    /// <summary>
+    /// Configuración de lista de valores con opción de conversión de tipo
+    /// </summary>
+    static void ConfigureListValues(string key, JTokenType originalType)
+    {
+        Console.Clear();
+        ConsoleHelper.WriteHeader($"Lista de valores para '{key}'");
+        ConsoleHelper.WriteInfo($"Tipo original: {GetTypeName(originalType)}");
+        ConsoleHelper.WriteSeparator();
+
+        // Preguntar si quiere convertir el tipo
+        var typeOptions = new[]
+        {
+            $"Mantener tipo ({GetTypeName(originalType)})",
+            "Convertir a texto (string)",
+            "Convertir a entero (int)",
+            "Convertir a decimal (float)",
+            "Convertir a booleano (bool)",
+            "<< Volver"
+        };
+
+        int typeSelected = ConsoleHelper.ShowMenu("Seleccione el tipo de los valores", typeOptions);
+        
+        if (typeSelected == 5) return;
+
+        JTokenType targetType = typeSelected switch
+        {
+            0 => originalType,
+            1 => JTokenType.String,
+            2 => JTokenType.Integer,
+            3 => JTokenType.Float,
+            4 => JTokenType.Boolean,
+            _ => originalType
+        };
+
+        Console.Clear();
+        ConsoleHelper.WriteInfo($"Tipo de valores: {GetTypeName(targetType)}");
+        Console.WriteLine("Ingrese los valores separados por coma:");
+        string? valuesInput = Console.ReadLine();
+
+        if (!string.IsNullOrEmpty(valuesInput))
+        {
+            var values = valuesInput.Split(',')
+                .Select(v => ConvertValueToType(v.Trim(), targetType))
+                .ToArray();
+
+            GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+            {
+                Operation = EnumOperations.Replace,
+                TypeDefault = JTokenType.Array,
+                Value = values
+            });
+
+            string typeInfo = targetType != originalType 
+                ? $" (convertido de {GetTypeName(originalType)} a {GetTypeName(targetType)})" 
+                : "";
+            ConsoleHelper.WriteSuccess($"Configurado: {key} rotará entre {values.Length} valores{typeInfo}");
+        }
+        else
+        {
+            ConsoleHelper.WriteWarning("No se ingresaron valores");
+        }
         ConsoleHelper.WaitForKey();
     }
 

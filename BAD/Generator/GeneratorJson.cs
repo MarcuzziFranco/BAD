@@ -119,6 +119,11 @@ public class GeneratorJson
                     property.Value = GenerateStringValue(strValue);
                     break;
 
+                case JTokenType.Guid:
+                    // Generar nuevo GUID
+                    property.Value = GeneratorString.StringRandomUUID().ToString();
+                    break;
+
                 case JTokenType.Integer:
                     property.Value = GeneratorInteger.RandomInteger(Config.IntegerMin, Config.IntegerMax);
                     break;
