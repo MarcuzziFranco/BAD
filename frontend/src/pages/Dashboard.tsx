@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { templatesApi, executionsApi, presetsApi } from '@/services/api';
+import { templatesApi, executionsApi } from '@/services/api';
 
 export function Dashboard() {
   const { data: templates } = useQuery({
@@ -11,11 +11,6 @@ export function Dashboard() {
   const { data: executions } = useQuery({
     queryKey: ['executions'],
     queryFn: () => executionsApi.getAll().then((res) => res.data),
-  });
-
-  const { data: presets } = useQuery({
-    queryKey: ['presets'],
-    queryFn: () => presetsApi.getAll().then((res) => res.data),
   });
 
   const totalTests = executions?.reduce((acc, e) => acc + e.totalRequests, 0) || 0;
@@ -50,18 +45,6 @@ export function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Presets</CardTitle>
-            <span className="text-2xl">⚡</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{presets?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Presets de mutación disponibles
-            </p>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -90,84 +73,47 @@ export function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Últimas Ejecuciones</CardTitle>
-            <CardDescription>
-              Historial reciente de tests ejecutados
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {executions && executions.length > 0 ? (
-              <div className="space-y-4">
-                {executions.slice(0, 5).map((execution) => (
-                  <div
-                    key={execution.id}
-                    className="flex items-center justify-between border-b pb-2"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">
-                        {execution.presetUsed || 'Sin preset'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(execution.executedAt).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm">
-                        {execution.successCount}/{execution.totalRequests}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {execution.avgResponseTimeMs.toFixed(0)}ms avg
-                      </p>
-                    </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Últimas Ejecuciones</CardTitle>
+          <CardDescription>
+            Historial reciente de tests ejecutados
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {executions && executions.length > 0 ? (
+            <div className="space-y-4">
+              {executions.slice(0, 5).map((execution) => (
+                <div
+                  key={execution.id}
+                  className="flex items-center justify-between border-b pb-2"
+                >
+                  <div>
+                    <p className="text-sm font-medium">
+                      {execution.presetUsed || 'Sin preset'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(execution.executedAt).toLocaleString()}
+                    </p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No hay ejecuciones registradas
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Presets Disponibles</CardTitle>
-            <CardDescription>
-              Mutaciones predefinidas para testing
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {presets && presets.length > 0 ? (
-              <div className="space-y-2">
-                {presets.map((preset) => (
-                  <div
-                    key={preset.name}
-                    className="flex items-center justify-between border-b pb-2"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{preset.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {preset.description}
-                      </p>
-                    </div>
-                    <span className="text-xs bg-secondary px-2 py-1 rounded">
-                      {preset.category}
-                    </span>
+                  <div className="text-right">
+                    <p className="text-sm">
+                      {execution.successCount}/{execution.totalRequests}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {execution.avgResponseTimeMs.toFixed(0)}ms avg
+                    </p>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Cargando presets...
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No hay ejecuciones registradas
+            </p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

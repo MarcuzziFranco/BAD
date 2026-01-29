@@ -121,12 +121,15 @@ export function Executions() {
             </div>
             <div>
               <label className="text-sm font-medium">Preset</label>
-              <Select value={selectedPreset} onValueChange={setSelectedPreset}>
+              <Select 
+                value={selectedPreset || "_none"} 
+                onValueChange={(v) => setSelectedPreset(v === "_none" ? "" : v)}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Sin preset" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin preset</SelectItem>
+                  <SelectItem value="_none">Sin preset</SelectItem>
                   {presets?.map((p) => (
                     <SelectItem key={p.name} value={p.name}>
                       {p.name}

@@ -156,11 +156,11 @@ export function Configs() {
                 <div>
                   <label className="text-sm font-medium">Template JSON</label>
                   <Select
-                    value={formData.jsonTemplateId?.toString() || ''}
+                    value={formData.jsonTemplateId?.toString() || "_none"}
                     onValueChange={(v) =>
                       setFormData({
                         ...formData,
-                        jsonTemplateId: v ? parseInt(v) : null,
+                        jsonTemplateId: v === "_none" ? null : parseInt(v),
                       })
                     }
                   >
@@ -168,6 +168,7 @@ export function Configs() {
                       <SelectValue placeholder="Seleccionar template" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="_none">Sin template</SelectItem>
                       {templates?.map((t) => (
                         <SelectItem key={t.id} value={t.id.toString()}>
                           {t.name}

@@ -123,12 +123,15 @@ export function Generator() {
             <div className="flex gap-4 items-end">
               <div className="flex-1">
                 <label className="text-sm font-medium">Preset de Mutación</label>
-                <Select value={selectedPreset} onValueChange={setSelectedPreset}>
+                <Select 
+                  value={selectedPreset || "_none"} 
+                  onValueChange={(v) => setSelectedPreset(v === "_none" ? "" : v)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Sin preset (aleatorio)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin preset (aleatorio)</SelectItem>
+                    <SelectItem value="_none">Sin preset (aleatorio)</SelectItem>
                     {presets?.map((category) => (
                       <div key={category.category}>
                         <div className="px-2 py-1 text-xs font-semibold text-muted-foreground">

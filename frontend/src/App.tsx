@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from '@/components/layout/Layout';
 import { Dashboard } from '@/pages/Dashboard';
 import { Templates } from '@/pages/Templates';
+import { TemplateEditor } from '@/pages/TemplateEditor';
 import { Generator } from '@/pages/Generator';
 import { Configs } from '@/pages/Configs';
 import { Executions } from '@/pages/Executions';
@@ -24,6 +25,8 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="templates" element={<Templates />} />
+            <Route path="template-new" element={<TemplateEditor />} />
+            <Route path="template-edit/:id" element={<TemplateEditor />} />
             <Route path="generator" element={<Generator />} />
             <Route path="configs" element={<Configs />} />
             <Route path="executions" element={<Executions />} />
