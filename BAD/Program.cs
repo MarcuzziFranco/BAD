@@ -158,9 +158,9 @@ class Program
         ConsoleHelper.WriteHeader("Configurar valores por defecto");
 
         var jsonObject = JObject.Parse(_state.JsonContent!);
-        var keys = GetAllKeys(jsonObject, "").ToList();
+        var keysWithTypes = GetAllKeysWithTypes(jsonObject, "").ToList();
 
-        if (keys.Count == 0)
+        if (keysWithTypes.Count == 0)
         {
             ConsoleHelper.WriteWarning("El JSON no tiene propiedades configurables");
             ConsoleHelper.WaitForKey();
@@ -178,25 +178,29 @@ class Program
                 ConsoleHelper.WriteInfo("Configuraciones actuales:");
                 foreach (var config in GeneratorJson.DefaultValuesOperations)
                 {
-                    Console.WriteLine($"  - {config.Key}: {config.Value.Operation} = {config.Value.Value}");
+                    Console.WriteLine($"  - {config.Key}: {config.Value.GetDescription()}");
                 }
                 ConsoleHelper.WriteSeparator();
             }
 
-            var menuOptions = keys.Select(k =>
+            var menuOptions = keysWithTypes.Select(kt =>
             {
-                var hasConfig = GeneratorJson.DefaultValuesOperations.ContainsKey(k) ? " [configurado]" : "";
-                return $"{k}{hasConfig}";
+                string configInfo = "";
+                if (GeneratorJson.DefaultValuesOperations.TryGetValue(kt.Key, out var config))
+                {
+                    configInfo = $" [{config.GetDescription()}]";
+                }
+                return $"{kt.Key} ({GetTypeName(kt.Type)}: {GetValuePreview(kt.Value)}){configInfo}";
             }).Concat(new[] { "Limpiar todas las configuraciones", "<< Volver" }).ToArray();
 
             int selected = ConsoleHelper.ShowMenu("Seleccione una propiedad para configurar", menuOptions);
 
-            if (selected == keys.Count + 1)
+            if (selected == keysWithTypes.Count + 1)
             {
                 return; // Volver
             }
 
-            if (selected == keys.Count)
+            if (selected == keysWithTypes.Count)
             {
                 GeneratorJson.ClearDefaultValues();
                 ConsoleHelper.WriteSuccess("Configuraciones limpiadas");
@@ -204,94 +208,223 @@ class Program
                 continue;
             }
 
-            ConfigureProperty(keys[selected]);
+            var selectedItem = keysWithTypes[selected];
+            ConfigureProperty(selectedItem.Key, selectedItem.Type, selectedItem.Value);
         }
+    }
+
+    /// <summary>
+    /// Obtiene un nombre legible para el tipo
+    /// </summary>
+    static string GetTypeName(JTokenType type)
+    {
+        return type switch
+        {
+            JTokenType.String => "texto",
+            JTokenType.Integer => "entero",
+            JTokenType.Float => "decimal",
+            JTokenType.Boolean => "booleano",
+            JTokenType.Date => "fecha",
+            JTokenType.Null => "null",
+            JTokenType.Object => "objeto",
+            JTokenType.Array => "array",
+            _ => type.ToString()
+        };
+    }
+
+    /// <summary>
+    /// Obtiene una vista previa del valor
+    /// </summary>
+    static string GetValuePreview(JToken value)
+    {
+        var str = value.ToString();
+        if (str.Length > 20)
+        {
+            return str.Substring(0, 17) + "...";
+        }
+        return str;
     }
 
     /// <summary>
     /// Configura una propiedad específica
     /// </summary>
-    static void ConfigureProperty(string key)
+    static void ConfigureProperty(string key, JTokenType type, JToken currentValue)
     {
         Console.Clear();
         ConsoleHelper.WriteHeader($"Configurar: {key}");
+        ConsoleHelper.WriteInfo($"Tipo: {GetTypeName(type)}");
+        ConsoleHelper.WriteInfo($"Valor actual: {currentValue}");
+        ConsoleHelper.WriteSeparator();
 
-        var operationOptions = new[]
+        // Construir opciones según el tipo
+        var options = new List<string>
         {
             "Reemplazar con valor fijo",
-            "Reemplazar con lista de valores (rotativo)",
+            "Reemplazar con lista de valores (rotativo)"
+        };
+
+        // Agregar opción de rango solo para tipos numéricos y fechas
+        bool supportsRange = type == JTokenType.Integer || type == JTokenType.Float || type == JTokenType.Date;
+        if (supportsRange)
+        {
+            options.Add($"Generar aleatorio en rango ({GetTypeName(type)})");
+        }
+
+        options.AddRange(new[]
+        {
             "Forzar NULL",
             "No cambiar (mantener original)",
             "Quitar configuración",
             "<< Volver"
-        };
+        });
 
-        int opSelected = ConsoleHelper.ShowMenu($"Operación para '{key}'", operationOptions);
+        int opSelected = ConsoleHelper.ShowMenu($"Operación para '{key}'", options.ToArray());
 
-        switch (opSelected)
+        // Ajustar índice si no soporta rango
+        int rangeOptionIndex = supportsRange ? 2 : -1;
+        int nullOptionIndex = supportsRange ? 3 : 2;
+        int noChangeOptionIndex = supportsRange ? 4 : 3;
+        int removeOptionIndex = supportsRange ? 5 : 4;
+        int backOptionIndex = supportsRange ? 6 : 5;
+
+        if (opSelected == 0) // Valor fijo
         {
-            case 0: // Valor fijo
-                Console.Clear();
-                string value = ConsoleHelper.GetStringInput($"Ingrese el valor para '{key}'");
+            Console.Clear();
+            ConsoleHelper.WriteInfo($"Tipo original: {GetTypeName(type)}");
+            string value = ConsoleHelper.GetStringInput($"Ingrese el valor para '{key}'");
+            
+            var configValue = ConvertValueToType(value, type);
+            GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+            {
+                Operation = EnumOperations.Replace,
+                TypeDefault = type,
+                Value = configValue
+            });
+            ConsoleHelper.WriteSuccess($"Configurado: {key} = {configValue}");
+        }
+        else if (opSelected == 1) // Lista de valores
+        {
+            Console.Clear();
+            ConsoleHelper.WriteInfo($"Tipo original: {GetTypeName(type)}");
+            Console.WriteLine("Ingrese los valores separados por coma:");
+            string? valuesInput = Console.ReadLine();
+            if (!string.IsNullOrEmpty(valuesInput))
+            {
+                var values = valuesInput.Split(',')
+                    .Select(v => ConvertValueToType(v.Trim(), type))
+                    .ToArray();
                 GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
                 {
                     Operation = EnumOperations.Replace,
-                    Value = value
+                    TypeDefault = JTokenType.Array,
+                    Value = values
                 });
-                ConsoleHelper.WriteSuccess($"Configurado: {key} = {value}");
-                break;
-
-            case 1: // Lista de valores
-                Console.Clear();
-                Console.WriteLine("Ingrese los valores separados por coma:");
-                string? valuesInput = Console.ReadLine();
-                if (!string.IsNullOrEmpty(valuesInput))
-                {
-                    var values = valuesInput.Split(',').Select(v => v.Trim()).ToArray();
-                    GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
-                    {
-                        Operation = EnumOperations.Replace,
-                        TypeDefault = JTokenType.Array,
-                        Value = values
-                    });
-                    ConsoleHelper.WriteSuccess($"Configurado: {key} rotará entre {values.Length} valores");
-                }
-                break;
-
-            case 2: // Forzar NULL
+                ConsoleHelper.WriteSuccess($"Configurado: {key} rotará entre {values.Length} valores");
+            }
+        }
+        else if (supportsRange && opSelected == rangeOptionIndex) // Rango
+        {
+            Console.Clear();
+            ConsoleHelper.WriteInfo($"Configurar rango para {GetTypeName(type)}");
+            
+            if (type == JTokenType.Integer)
+            {
+                int min = ConsoleHelper.GetIntInput("Valor mínimo", int.MinValue, int.MaxValue, 0);
+                int max = ConsoleHelper.GetIntInput("Valor máximo", min, int.MaxValue, 100);
                 GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
                 {
-                    Operation = EnumOperations.ForceNull
+                    Operation = EnumOperations.RandomRange,
+                    TypeDefault = type,
+                    MinValue = min,
+                    MaxValue = max
                 });
-                ConsoleHelper.WriteSuccess($"Configurado: {key} = NULL");
-                break;
-
-            case 3: // No cambiar
+                ConsoleHelper.WriteSuccess($"Configurado: {key} aleatorio entre {min} y {max}");
+            }
+            else if (type == JTokenType.Float)
+            {
+                Console.Write("Valor mínimo [0]: ");
+                float min = float.TryParse(Console.ReadLine(), out var minVal) ? minVal : 0;
+                Console.Write($"Valor máximo [{min + 100}]: ");
+                float max = float.TryParse(Console.ReadLine(), out var maxVal) ? maxVal : min + 100;
                 GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
                 {
-                    Operation = EnumOperations.NotChange
+                    Operation = EnumOperations.RandomRange,
+                    TypeDefault = type,
+                    MinValue = min,
+                    MaxValue = max
                 });
-                ConsoleHelper.WriteSuccess($"Configurado: {key} mantendrá su valor original");
-                break;
-
-            case 4: // Quitar
-                if (GeneratorJson.DefaultValuesOperations.Remove(key))
+                ConsoleHelper.WriteSuccess($"Configurado: {key} aleatorio entre {min} y {max}");
+            }
+            else if (type == JTokenType.Date)
+            {
+                string minDate = ConsoleHelper.GetStringInput("Fecha mínima (yyyy-MM-dd)", "2020-01-01");
+                string maxDate = ConsoleHelper.GetStringInput("Fecha máxima (yyyy-MM-dd)", "2024-12-31");
+                GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
                 {
-                    ConsoleHelper.WriteSuccess($"Configuración eliminada para: {key}");
-                }
-                break;
-
-            case 5: // Volver
-                return;
+                    Operation = EnumOperations.RandomRange,
+                    TypeDefault = type,
+                    MinValue = minDate,
+                    MaxValue = maxDate
+                });
+                ConsoleHelper.WriteSuccess($"Configurado: {key} aleatorio entre {minDate} y {maxDate}");
+            }
+        }
+        else if (opSelected == nullOptionIndex) // Forzar NULL
+        {
+            GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+            {
+                Operation = EnumOperations.ForceNull
+            });
+            ConsoleHelper.WriteSuccess($"Configurado: {key} = NULL");
+        }
+        else if (opSelected == noChangeOptionIndex) // No cambiar
+        {
+            GeneratorJson.AddNewDefaultValue(key, new DefaultValueConfig
+            {
+                Operation = EnumOperations.NotChange
+            });
+            ConsoleHelper.WriteSuccess($"Configurado: {key} mantendrá su valor original");
+        }
+        else if (opSelected == removeOptionIndex) // Quitar
+        {
+            if (GeneratorJson.DefaultValuesOperations.Remove(key))
+            {
+                ConsoleHelper.WriteSuccess($"Configuración eliminada para: {key}");
+            }
+        }
+        else if (opSelected == backOptionIndex) // Volver
+        {
+            return;
         }
 
         ConsoleHelper.WaitForKey();
     }
 
     /// <summary>
-    /// Obtiene todas las keys de un JSON (incluyendo anidadas)
+    /// Convierte un string al tipo apropiado
     /// </summary>
-    static IEnumerable<string> GetAllKeys(JObject obj, string prefix)
+    static object ConvertValueToType(string value, JTokenType type)
+    {
+        try
+        {
+            return type switch
+            {
+                JTokenType.Integer => int.Parse(value),
+                JTokenType.Float => float.Parse(value),
+                JTokenType.Boolean => bool.Parse(value),
+                _ => value
+            };
+        }
+        catch
+        {
+            return value;
+        }
+    }
+
+    /// <summary>
+    /// Obtiene todas las keys de un JSON con su tipo y valor (incluyendo anidadas)
+    /// </summary>
+    static IEnumerable<(string Key, JTokenType Type, JToken Value)> GetAllKeysWithTypes(JObject obj, string prefix)
     {
         foreach (var property in obj.Properties())
         {
@@ -299,22 +432,23 @@ class Program
 
             if (property.Value is JObject nestedObj)
             {
-                foreach (var nestedKey in GetAllKeys(nestedObj, fullPath))
+                foreach (var nestedItem in GetAllKeysWithTypes(nestedObj, fullPath))
                 {
-                    yield return nestedKey;
+                    yield return nestedItem;
                 }
             }
             else if (property.Value is JArray array && array.Count > 0 && array[0] is JObject)
             {
                 // Para arrays de objetos, mostrar las propiedades del primer elemento
-                foreach (var arrayKey in GetAllKeys((JObject)array[0], $"{fullPath}[0]"))
+                foreach (var arrayItem in GetAllKeysWithTypes((JObject)array[0], $"{fullPath}[0]"))
                 {
-                    yield return arrayKey;
+                    yield return arrayItem;
                 }
             }
             else
             {
-                yield return fullPath;
+                var valueType = Analyzer.GetType(property.Value);
+                yield return (fullPath, valueType, property.Value);
             }
         }
     }

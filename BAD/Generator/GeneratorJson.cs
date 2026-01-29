@@ -59,13 +59,13 @@ public class GeneratorJson
     /// <summary>
     /// Genera un nuevo JSON con valores aleatorios basado en el JSON base
     /// </summary>
-    public static dynamic GeneratorJsonValues(dynamic json)
+    public static string GeneratorJsonValues(string json)
     {
         try
         {
             var jsonObject = JObject.Parse(json);
-            jsonObject = GenerateValue(jsonObject);
-            return jsonObject.ToString();
+            var result = GenerateValue(jsonObject);
+            return result.ToString();
         }
         catch (Exception ex)
         {
@@ -86,22 +86,25 @@ public class GeneratorJson
         return results;
     }
 
-    private static dynamic GenerateValue(dynamic jsonData)
+    private static JObject GenerateValue(JObject jsonData)
     {
-        foreach (var property in jsonData.Properties())
+        foreach (var property in jsonData.Properties().ToList())
         {
             var key = property.Path;
             JToken value = property.Value;
 
             #region Logic for default value operations
             var operationResult = ProcessDefaultValueOperation(key, value);
-            if (operationResult.HasValue)
+            if (operationResult != null)
             {
                 if (operationResult.Value.shouldSkip)
                 {
                     continue; // NotChange operation
                 }
-                property.Value = operationResult.Value.newValue;
+                if (operationResult.Value.newValue != null)
+                {
+                    property.Value = operationResult.Value.newValue;
+                }
                 continue;
             }
             #endregion
@@ -112,7 +115,8 @@ public class GeneratorJson
             switch (typeValue)
             {
                 case JTokenType.String:
-                    property.Value = GenerateStringValue((string)property.Value);
+                    var strValue = property.Value?.ToString() ?? "";
+                    property.Value = GenerateStringValue(strValue);
                     break;
 
                 case JTokenType.Integer:
@@ -153,22 +157,22 @@ public class GeneratorJson
         return GeneratorString.StringRandomAllCase(Config.StringLength, Config.StringBeginUpperCase, false);
     }
 
-    private static void ProcessObjectOrArray(dynamic property)
+    private static void ProcessObjectOrArray(JProperty property)
     {
         if (property.Value is JArray array)
         {
             for (int i = 0; i < array.Count; i++)
             {
                 var obj = array[i];
-                if (obj is JObject)
+                if (obj is JObject jObj)
                 {
-                    GenerateValue(obj);
+                    GenerateValue(jObj);
                 }
             }
         }
-        else if (property.Value is JObject)
+        else if (property.Value is JObject jObject)
         {
-            GenerateValue(property.Value);
+            GenerateValue(jObject);
         }
     }
 
@@ -189,11 +193,48 @@ public class GeneratorJson
             case EnumOperations.ForceNull:
                 return (false, JValue.CreateNull());
 
+            case EnumOperations.RandomRange:
+                var rangeValue = GenerateRandomInRange(operationConfig);
+                return (false, rangeValue != null ? JToken.FromObject(rangeValue) : originalValue);
+
             case EnumOperations.Replace:
             default:
                 var newValue = GetReplacementValue(ref operationConfig);
                 return (false, newValue != null ? JToken.FromObject(newValue) : JValue.CreateNull());
         }
+    }
+
+    private static object? GenerateRandomInRange(DefaultValueConfig config)
+    {
+        if (config.MinValue == null || config.MaxValue == null)
+        {
+            return null;
+        }
+
+        // Detectar tipo por el TypeDefault o por los valores min/max
+        if (config.TypeDefault == JTokenType.Integer || 
+            (config.MinValue is int || config.MinValue is long))
+        {
+            int min = Convert.ToInt32(config.MinValue);
+            int max = Convert.ToInt32(config.MaxValue);
+            return GeneratorInteger.RandomInteger(min, max);
+        }
+        else if (config.TypeDefault == JTokenType.Float ||
+                 (config.MinValue is float || config.MinValue is double || config.MinValue is decimal))
+        {
+            float min = Convert.ToSingle(config.MinValue);
+            float max = Convert.ToSingle(config.MaxValue);
+            return GenerateFloat.FloatRandom(min, max, Config.FloatDecimals);
+        }
+        else if (config.TypeDefault == JTokenType.Date ||
+                 config.MinValue is DateTime || config.MinValue is string)
+        {
+            string minDate = config.MinValue?.ToString() ?? Config.DateMin;
+            string maxDate = config.MaxValue?.ToString() ?? Config.DateMax;
+            return GeneratorDateTime.RandomDatetime(minDate, maxDate, Config.DateFormat);
+        }
+
+        return null;
     }
 
     private static dynamic? GetReplacementValue(ref DefaultValueConfig defaultValueConfig)
