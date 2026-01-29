@@ -34,15 +34,38 @@ export interface JsonField {
   value: unknown;
 }
 
+export interface FieldConfig {
+  key: string;
+  operation: 'Random' | 'Replace' | 'ForceNull' | 'NotChange' | 'RandomRange' | 'RotateList';
+  value?: unknown;
+  minValue?: unknown;
+  maxValue?: unknown;
+  listValues?: unknown[];
+}
+
 export interface GenerateRequest {
   jsonContent: string;
   count: number;
   presetName?: string;
+  fieldConfigs?: FieldConfig[];
+  outputFormat?: 'Preview' | 'SingleFile' | 'Database';
 }
 
 export interface GenerateResponse {
   generatedJsons: string[];
   presetApplied: string | null;
+  savedTemplateId: number | null;
+}
+
+export interface OperationInfo {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface OperationsResponse {
+  operations: OperationInfo[];
+  typeOperations: Record<string, string[]>;
 }
 
 export interface RequestConfig {
@@ -105,6 +128,7 @@ export const generatorApi = {
   generate: (data: GenerateRequest) => api.post<GenerateResponse>('/generator/generate', data),
   analyze: (jsonContent: string) =>
     api.post<{ fields: JsonField[] }>('/generator/analyze', { jsonContent }),
+  getOperations: () => api.get<OperationsResponse>('/generator/operations'),
 };
 
 export const configsApi = {
