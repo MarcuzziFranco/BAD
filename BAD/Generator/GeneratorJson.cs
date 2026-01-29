@@ -141,6 +141,7 @@ public class GeneratorJson
                     break;
 
                 case JTokenType.Object:
+                case JTokenType.Array:
                     ProcessObjectOrArray(property);
                     break;
 
@@ -166,14 +167,7 @@ public class GeneratorJson
     {
         if (property.Value is JArray array)
         {
-            for (int i = 0; i < array.Count; i++)
-            {
-                var obj = array[i];
-                if (obj is JObject jObj)
-                {
-                    GenerateValue(jObj);
-                }
-            }
+            ProcessArray(array, property.Path);
         }
         else if (property.Value is JObject jObject)
         {
@@ -181,16 +175,85 @@ public class GeneratorJson
         }
     }
 
+    /// <summary>
+    /// Procesa un array JSON, manejando tanto arrays de objetos como de valores primitivos
+    /// </summary>
+    private static void ProcessArray(JArray array, string basePath)
+    {
+        for (int i = 0; i < array.Count; i++)
+        {
+            var element = array[i];
+            string elementPath = $"{basePath}[{i}]";
+
+            if (element is JObject jObj)
+            {
+                // Array de objetos - procesar recursivamente
+                GenerateValue(jObj);
+            }
+            else if (element is JArray nestedArray)
+            {
+                // Array de arrays - procesar recursivamente
+                ProcessArray(nestedArray, elementPath);
+            }
+            else
+            {
+                // Array de valores primitivos - aplicar configuración o generar aleatorio
+                var operationResult = ProcessDefaultValueOperation(elementPath, element);
+                if (operationResult != null)
+                {
+                    if (!operationResult.Value.shouldSkip && operationResult.Value.newValue != null)
+                    {
+                        array[i] = operationResult.Value.newValue;
+                    }
+                }
+                else
+                {
+                    // Generar valor aleatorio según el tipo
+                    var newValue = GenerateRandomValueForType(Analyzer.GetType(element), element);
+                    if (newValue != null)
+                    {
+                        array[i] = newValue;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Genera un valor aleatorio para un tipo específico
+    /// </summary>
+    private static JToken? GenerateRandomValueForType(JTokenType type, JToken currentValue)
+    {
+        return type switch
+        {
+            JTokenType.String => GenerateStringValue(currentValue?.ToString() ?? ""),
+            JTokenType.Guid => GeneratorString.StringRandomUUID().ToString(),
+            JTokenType.Integer => GeneratorInteger.RandomInteger(Config.IntegerMin, Config.IntegerMax),
+            JTokenType.Float => GenerateFloat.FloatRandom(Config.FloatMin, Config.FloatMax, Config.FloatDecimals),
+            JTokenType.Boolean => GeneratorBoolean.RandomBoolean(),
+            JTokenType.Date => GeneratorDateTime.RandomDatetime(Config.DateMin, Config.DateMax, Config.DateFormat),
+            _ => null
+        };
+    }
+
     private static (bool shouldSkip, JToken? newValue)? ProcessDefaultValueOperation(string keyJson, JToken originalValue)
     {
-        if (!DefaultValuesOperations.ContainsKey(keyJson))
+        // Buscar configuración exacta primero
+        if (!DefaultValuesOperations.TryGetValue(keyJson, out var operationConfig))
         {
-            return null;
+            // Si no existe, buscar versión normalizada (para arrays: [n] -> [0])
+            string normalizedKey = NormalizeArrayIndexes(keyJson);
+            if (normalizedKey != keyJson && !DefaultValuesOperations.TryGetValue(normalizedKey, out operationConfig))
+            {
+                return null;
+            }
+            else if (normalizedKey == keyJson)
+            {
+                return null;
+            }
         }
 
-        DefaultValueConfig operationConfig = DefaultValuesOperations[keyJson];
-
-        switch (operationConfig.Operation)
+        switch (operationConfig!.Operation)
         {
             case EnumOperations.NotChange:
                 return (true, null); // Skip, mantener valor original
@@ -207,6 +270,17 @@ public class GeneratorJson
                 var newValue = GetReplacementValue(ref operationConfig);
                 return (false, newValue != null ? JToken.FromObject(newValue) : JValue.CreateNull());
         }
+    }
+
+    /// <summary>
+    /// Normaliza los índices de arrays en un path JSON
+    /// Ejemplo: "campains[1].branch" -> "campains[0].branch"
+    /// Esto permite que las configuraciones definidas para [0] apliquen a todos los elementos del array
+    /// </summary>
+    private static string NormalizeArrayIndexes(string path)
+    {
+        // Reemplazar cualquier [n] por [0]
+        return System.Text.RegularExpressions.Regex.Replace(path, @"\[\d+\]", "[0]");
     }
 
     private static object? GenerateRandomInRange(DefaultValueConfig config)

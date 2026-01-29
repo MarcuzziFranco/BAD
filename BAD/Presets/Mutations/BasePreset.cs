@@ -31,21 +31,56 @@ public abstract class BasePreset : IPreset
 
             if (property.Value is JObject nestedObj)
             {
+                // Objeto anidado - procesar recursivamente
                 ProcessObject(nestedObj, fullPath, configs);
             }
-            else if (property.Value is JArray array && array.Count > 0 && array[0] is JObject)
+            else if (property.Value is JArray array)
             {
-                // Para arrays de objetos, procesar el primer elemento como template
-                ProcessObject((JObject)array[0], $"{fullPath}[0]", configs);
+                // Procesar array
+                ProcessArray(array, fullPath, configs);
             }
             else
             {
+                // Valor primitivo
                 var valueType = Analyzer.GetType(property.Value);
                 var config = CreateConfigForType(fullPath, valueType, property.Value);
                 if (config != null)
                 {
                     configs[fullPath] = config;
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Procesa un array JSON (de objetos o de valores primitivos)
+    /// </summary>
+    protected void ProcessArray(JArray array, string prefix, Dictionary<string, DefaultValueConfig> configs)
+    {
+        if (array.Count == 0) return;
+
+        var firstElement = array[0];
+
+        if (firstElement is JObject firstObj)
+        {
+            // Array de objetos - procesar el primer elemento como template
+            // Los índices [0] serán normalizados para aplicar a todos los elementos
+            ProcessObject(firstObj, $"{prefix}[0]", configs);
+        }
+        else if (firstElement is JArray nestedArray)
+        {
+            // Array de arrays - procesar recursivamente
+            ProcessArray(nestedArray, $"{prefix}[0]", configs);
+        }
+        else
+        {
+            // Array de valores primitivos - configurar cada elemento del array
+            // Usamos [0] como template que aplicará a todos
+            var valueType = Analyzer.GetType(firstElement);
+            var config = CreateConfigForType($"{prefix}[0]", valueType, firstElement);
+            if (config != null)
+            {
+                configs[$"{prefix}[0]"] = config;
             }
         }
     }
