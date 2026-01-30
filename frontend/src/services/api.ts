@@ -246,6 +246,7 @@ export const executionsApi = {
   start: (data: CreateExecutionRequest) => api.post<TestExecution>('/executions/start', data),
   getProgress: (id: number) => api.get<ExecutionProgress>(`/executions/${id}/progress`),
   cancel: (id: number) => api.post(`/executions/${id}/cancel`),
+  rerun: (id: number) => api.post<TestExecution>(`/executions/${id}/rerun`),
   getResults: (id: number, page: number = 1, pageSize: number = 20) =>
     api.get<PaginatedResults>(`/executions/${id}/results?page=${page}&pageSize=${pageSize}`),
   delete: (id: number) => api.delete(`/executions/${id}`),

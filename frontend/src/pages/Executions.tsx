@@ -33,6 +33,7 @@ import {
   PlayCircle,
   Ban,
   Rocket,
+  RefreshCw,
 } from 'lucide-react';
 
 export function Executions() {
@@ -58,6 +59,11 @@ export function Executions() {
     if (confirm('¿Eliminar esta ejecución y todos sus resultados?')) {
       deleteMutation.mutate(id);
     }
+  };
+
+  const handleRerun = (id: number) => {
+    // Navegar al wizard con el ID de la ejecución a re-ejecutar
+    navigate(`/executions/new?rerun=${id}`);
   };
 
   const getStatusBadge = (status: string) => {
@@ -214,6 +220,17 @@ export function Executions() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
+                            title="Re-ejecutar"
+                            disabled={exec.status === 'running'}
+                            onClick={() => handleRerun(exec.id)}
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Ver detalle"
                             onClick={() => navigate(`/executions/${exec.id}`)}
                           >
                             <Eye className="w-4 h-4" />
@@ -222,6 +239,8 @@ export function Executions() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-destructive hover:text-destructive"
+                            title="Eliminar"
+                            disabled={exec.status === 'running'}
                             onClick={() => handleDelete(exec.id)}
                           >
                             <Trash2 className="w-4 h-4" />

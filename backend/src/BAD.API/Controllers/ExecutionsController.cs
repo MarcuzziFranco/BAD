@@ -390,6 +390,53 @@ public class ExecutionsController : ControllerBase
     }
 
     /// <summary>
+    /// Re-ejecuta una ejecución anterior con la misma configuración
+    /// </summary>
+    [HttpPost("{id}/rerun")]
+    public async Task<ActionResult<TestExecutionDto>> Rerun(int id)
+    {
+        var original = await _context.TestExecutions
+            .Include(e => e.RequestConfig)
+            .FirstOrDefaultAsync(e => e.Id == id);
+
+        if (original == null)
+            return NotFound("Ejecución no encontrada");
+
+        if (original.RequestConfig == null)
+            return BadRequest("La configuración de request ya no existe");
+
+        // Deserializar mutaciones si existen
+        List<FieldConfigDto>? mutations = null;
+        if (!string.IsNullOrEmpty(original.MutationsConfig))
+        {
+            try
+            {
+                mutations = JsonConvert.DeserializeObject<List<FieldConfigDto>>(original.MutationsConfig);
+            }
+            catch
+            {
+                // Si falla deserializar, continuar sin mutaciones
+            }
+        }
+
+        // Crear DTO con la configuración original
+        var createDto = new CreateExecutionDto(
+            original.RequestConfigId,
+            original.BodyMode,
+            original.BaseJson,
+            original.TemplateId,
+            mutations,
+            original.TotalRequests,
+            original.ExecutionMode,
+            original.IntervalMs,
+            original.MutatePerIteration,
+            original.PresetUsed
+        );
+
+        return await Start(createDto);
+    }
+
+    /// <summary>
     /// Ejecuta un test con la configuración especificada (legacy)
     /// </summary>
     [HttpPost]
