@@ -1,8 +1,10 @@
 using BAD.API.DTOs;
+using BAD.Core.Http;
 using BAD.Storage.Context;
 using BAD.Storage.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace BAD.API.Controllers;
 
@@ -77,7 +79,7 @@ public class RequestConfigsController : ControllerBase
             Url = dto.Url,
             Method = dto.Method,
             Headers = dto.Headers,
-            AuthType = dto.AuthType,
+            AuthType = dto.AuthType ?? "None",
             AuthValue = dto.AuthValue,
             JsonTemplateId = dto.JsonTemplateId,
             CreatedAt = DateTime.UtcNow
@@ -116,7 +118,7 @@ public class RequestConfigsController : ControllerBase
         config.Url = dto.Url;
         config.Method = dto.Method;
         config.Headers = dto.Headers;
-        config.AuthType = dto.AuthType;
+        config.AuthType = dto.AuthType ?? "None";
         config.AuthValue = dto.AuthValue;
         config.JsonTemplateId = dto.JsonTemplateId;
 
@@ -140,5 +142,84 @@ public class RequestConfigsController : ControllerBase
         await _context.SaveChangesAsync();
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Parsea un comando cURL y devuelve la configuración extraída
+    /// </summary>
+    [HttpPost("parse-curl")]
+    public ActionResult<ParsedCurlDto> ParseCurl([FromBody] ParseCurlRequestDto request)
+    {
+        try
+        {
+            var parsed = CurlParser.Parse(request.CurlCommand);
+            
+            return Ok(new ParsedCurlDto(
+                parsed.Url,
+                parsed.Method,
+                parsed.Headers.Count > 0 ? JsonConvert.SerializeObject(parsed.Headers) : null,
+                parsed.Body,
+                parsed.AuthType,
+                parsed.AuthValue,
+                parsed.Warnings
+            ));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = $"Error al parsear cURL: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Crea una configuración desde un comando cURL
+    /// </summary>
+    [HttpPost("from-curl")]
+    public async Task<ActionResult<RequestConfigDto>> CreateFromCurl([FromBody] CreateFromCurlRequestDto request)
+    {
+        try
+        {
+            var parsed = CurlParser.Parse(request.CurlCommand);
+            
+            var config = new RequestConfig
+            {
+                Name = request.Name ?? $"Config desde cURL - {DateTime.Now:yyyy-MM-dd HH:mm}",
+                Url = parsed.Url,
+                Method = parsed.Method,
+                Headers = parsed.Headers.Count > 0 ? JsonConvert.SerializeObject(parsed.Headers) : null,
+                AuthType = parsed.AuthType ?? "None",
+                AuthValue = parsed.AuthValue,
+                JsonTemplateId = request.JsonTemplateId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.RequestConfigs.Add(config);
+            await _context.SaveChangesAsync();
+
+            var result = new RequestConfigDto(
+                config.Id,
+                config.Name,
+                config.Url,
+                config.Method,
+                config.Headers,
+                config.AuthType,
+                config.AuthValue,
+                config.JsonTemplateId,
+                config.CreatedAt
+            );
+
+            return CreatedAtAction(nameof(GetById), new { id = config.Id }, result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = $"Error al crear configuración desde cURL: {ex.Message}" });
+        }
     }
 }

@@ -1,21 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -24,320 +13,245 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import {
-  executionsApi,
-  configsApi,
-  presetsApi,
-  type TestExecutionDetail,
-} from '@/services/api';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { executionsApi } from '@/services/api';
+import {
+  Plus,
+  Eye,
+  Trash2,
+  Search,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  PlayCircle,
+  Ban,
+  Rocket,
+} from 'lucide-react';
 
 export function Executions() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [selectedConfigId, setSelectedConfigId] = useState<string>('');
-  const [selectedPreset, setSelectedPreset] = useState<string>('');
-  const [count, setCount] = useState(5);
-  const [sequential, setSequential] = useState(true);
-  const [selectedExecution, setSelectedExecution] =
-    useState<TestExecutionDetail | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const { data: executions, isLoading } = useQuery({
     queryKey: ['executions'],
     queryFn: () => executionsApi.getAll().then((res) => res.data),
-  });
-
-  const { data: configs } = useQuery({
-    queryKey: ['configs'],
-    queryFn: () => configsApi.getAll().then((res) => res.data),
-  });
-
-  const { data: presets } = useQuery({
-    queryKey: ['presets'],
-    queryFn: () => presetsApi.getAll().then((res) => res.data),
-  });
-
-  const executeMutation = useMutation({
-    mutationFn: executionsApi.execute,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['executions'] });
-    },
+    refetchInterval: 5000, // Refrescar cada 5 segundos para ver ejecuciones en progreso
   });
 
   const deleteMutation = useMutation({
     mutationFn: executionsApi.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['executions'] });
-      setSelectedExecution(null);
     },
   });
 
-  const handleExecute = () => {
-    executeMutation.mutate({
-      requestConfigId: parseInt(selectedConfigId),
-      count,
-      presetName: selectedPreset || undefined,
-      sequential,
+  const handleDelete = (id: number) => {
+    if (confirm('¿Eliminar esta ejecución y todos sus resultados?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return <Badge className="bg-green-500/10 text-green-600"><CheckCircle2 className="w-3 h-3 mr-1" />Completado</Badge>;
+      case 'running':
+        return <Badge className="bg-blue-500/10 text-blue-600"><PlayCircle className="w-3 h-3 mr-1 animate-pulse" />Ejecutando</Badge>;
+      case 'failed':
+        return <Badge className="bg-red-500/10 text-red-600"><XCircle className="w-3 h-3 mr-1" />Error</Badge>;
+      case 'cancelled':
+        return <Badge className="bg-yellow-500/10 text-yellow-600"><Ban className="w-3 h-3 mr-1" />Cancelado</Badge>;
+      case 'pending':
+        return <Badge className="bg-gray-500/10 text-gray-600"><Clock className="w-3 h-3 mr-1" />Pendiente</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getSuccessRate = (success: number, total: number) => {
+    if (total === 0) return 0;
+    return Math.round((success / total) * 100);
+  };
+
+  const filteredExecutions = executions?.filter((e) => {
+    const matchesSearch = 
+      e.requestConfigName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.presetUsed?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || e.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
-  const handleViewDetail = async (id: number) => {
-    const response = await executionsApi.getById(id);
-    setSelectedExecution(response.data);
-  };
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Ejecuciones</h2>
-        <p className="text-muted-foreground">
-          Ejecuta tests y revisa el historial de ejecuciones
-        </p>
+    <div className="h-[calc(100vh-100px)] flex flex-col gap-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Ejecuciones</h2>
+          <p className="text-sm text-muted-foreground">
+            Historial de pruebas ejecutadas
+          </p>
+        </div>
+        <Button onClick={() => navigate('/executions/new')}>
+          <Plus className="w-4 h-4 mr-2" />
+          Nueva Ejecución
+        </Button>
       </div>
 
+      {/* Filtros */}
       <Card>
-        <CardHeader>
-          <CardTitle>Nueva Ejecución</CardTitle>
-          <CardDescription>
-            Configura y ejecuta un nuevo batch de tests
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-5">
-            <div>
-              <label className="text-sm font-medium">Configuración</label>
-              <Select value={selectedConfigId} onValueChange={setSelectedConfigId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar" />
-                </SelectTrigger>
-                <SelectContent>
-                  {configs?.map((c) => (
-                    <SelectItem key={c.id} value={c.id.toString()}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Preset</label>
-              <Select 
-                value={selectedPreset || "_none"} 
-                onValueChange={(v) => setSelectedPreset(v === "_none" ? "" : v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sin preset" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">Sin preset</SelectItem>
-                  {presets?.map((p) => (
-                    <SelectItem key={p.name} value={p.name}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Cantidad</label>
+        <CardContent className="py-4">
+          <div className="flex gap-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                type="number"
-                min={1}
-                max={100}
-                value={count}
-                onChange={(e) => setCount(parseInt(e.target.value) || 1)}
+                placeholder="Buscar por nombre o preset..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
               />
             </div>
-            <div>
-              <label className="text-sm font-medium">Modo</label>
-              <Select
-                value={sequential ? 'sequential' : 'parallel'}
-                onValueChange={(v) => setSequential(v === 'sequential')}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sequential">Secuencial</SelectItem>
-                  <SelectItem value="parallel">Paralelo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button
-                onClick={handleExecute}
-                disabled={!selectedConfigId || executeMutation.isPending}
-                className="w-full"
-              >
-                {executeMutation.isPending ? 'Ejecutando...' : 'Ejecutar'}
-              </Button>
-            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="completed">Completados</SelectItem>
+                <SelectItem value="running">En ejecución</SelectItem>
+                <SelectItem value="failed">Con errores</SelectItem>
+                <SelectItem value="cancelled">Cancelados</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Historial</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <p>Cargando...</p>
-            ) : executions && executions.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Preset</TableHead>
-                    <TableHead>Resultado</TableHead>
-                    <TableHead>Tiempo</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {executions.map((execution) => (
-                    <TableRow
-                      key={execution.id}
-                      className={
-                        selectedExecution?.id === execution.id
-                          ? 'bg-accent'
-                          : ''
-                      }
+      {/* Lista */}
+      <Card className="flex-1 flex flex-col min-h-0">
+        <CardContent className="flex-1 p-0 overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-20">ID</TableHead>
+                <TableHead>Servicio</TableHead>
+                <TableHead className="w-28">Estado</TableHead>
+                <TableHead className="w-24 text-right">Requests</TableHead>
+                <TableHead className="w-24 text-right">Éxito</TableHead>
+                <TableHead className="w-24 text-right">Avg</TableHead>
+                <TableHead className="w-40">Fecha</TableHead>
+                <TableHead className="w-24 text-right">Acciones</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                  </TableCell>
+                </TableRow>
+              ) : filteredExecutions && filteredExecutions.length > 0 ? (
+                filteredExecutions.map((exec) => {
+                  const successRate = getSuccessRate(exec.successCount, exec.totalRequests);
+                  return (
+                    <TableRow 
+                      key={exec.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/executions/${exec.id}`)}
                     >
+                      <TableCell className="font-mono text-sm">#{exec.id}</TableCell>
                       <TableCell>
-                        {new Date(execution.executedAt).toLocaleString()}
+                        <div>
+                          <p className="font-medium">{exec.requestConfigName || 'Sin nombre'}</p>
+                          {exec.presetUsed && (
+                            <p className="text-xs text-muted-foreground">Preset: {exec.presetUsed}</p>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell>{execution.presetUsed || '-'}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            execution.failureCount === 0
-                              ? 'default'
-                              : 'destructive'
-                          }
-                        >
-                          {execution.successCount}/{execution.totalRequests}
-                        </Badge>
+                      <TableCell>{getStatusBadge(exec.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <span className="font-mono">{exec.totalRequests}</span>
                       </TableCell>
-                      <TableCell>
-                        {execution.avgResponseTimeMs.toFixed(0)}ms
+                      <TableCell className="text-right">
+                        <span className={`font-mono ${
+                          successRate >= 90 ? 'text-green-600' :
+                          successRate >= 70 ? 'text-yellow-600' : 'text-red-600'
+                        }`}>
+                          {successRate}%
+                        </span>
+                        <span className="text-xs text-muted-foreground ml-1">
+                          ({exec.successCount}/{exec.totalRequests})
+                        </span>
                       </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewDetail(execution.id)}
-                        >
-                          Ver
-                        </Button>
+                      <TableCell className="text-right">
+                        <span className="font-mono text-sm">{Math.round(exec.avgResponseTimeMs)}ms</span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDate(exec.executedAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => navigate(`/executions/${exec.id}`)}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => handleDelete(exec.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="text-muted-foreground">No hay ejecuciones</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              Detalle
-              {selectedExecution && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="ml-4"
-                  onClick={() => deleteMutation.mutate(selectedExecution.id)}
-                >
-                  Eliminar
-                </Button>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-12">
+                    <Rocket className="w-10 h-10 mx-auto mb-2 text-muted-foreground/40" />
+                    <p className="text-muted-foreground">
+                      {searchTerm || statusFilter !== 'all' 
+                        ? 'No se encontraron ejecuciones'
+                        : 'No hay ejecuciones registradas'}
+                    </p>
+                    {!searchTerm && statusFilter === 'all' && (
+                      <Button variant="link" onClick={() => navigate('/executions/new')}>
+                        Crear la primera
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
               )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {selectedExecution ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Total:</span>{' '}
-                    {selectedExecution.totalRequests}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Éxitos:</span>{' '}
-                    {selectedExecution.successCount}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Fallos:</span>{' '}
-                    {selectedExecution.failureCount}
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Avg:</span>{' '}
-                    {selectedExecution.avgResponseTimeMs.toFixed(0)}ms
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Min:</span>{' '}
-                    {selectedExecution.minResponseTimeMs.toFixed(0)}ms
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Max:</span>{' '}
-                    {selectedExecution.maxResponseTimeMs.toFixed(0)}ms
-                  </div>
-                </div>
-
-                <Tabs defaultValue="0">
-                  <TabsList className="flex-wrap h-auto">
-                    {selectedExecution.results.slice(0, 10).map((r) => (
-                      <TabsTrigger key={r.index} value={r.index.toString()}>
-                        <Badge
-                          variant={r.isSuccess ? 'default' : 'destructive'}
-                          className="text-xs"
-                        >
-                          #{r.index + 1}
-                        </Badge>
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
-                  {selectedExecution.results.slice(0, 10).map((result) => (
-                    <TabsContent key={result.index} value={result.index.toString()}>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Status: {result.statusCode}</span>
-                          <span>{result.durationMs.toFixed(0)}ms</span>
-                        </div>
-                        {result.error && (
-                          <div className="text-destructive">{result.error}</div>
-                        )}
-                        <div>
-                          <h4 className="font-medium">Request:</h4>
-                          <pre className="bg-secondary p-2 rounded text-xs overflow-auto max-h-32">
-                            {JSON.stringify(JSON.parse(result.requestPayload), null, 2)}
-                          </pre>
-                        </div>
-                        {result.responseBody && (
-                          <div>
-                            <h4 className="font-medium">Response:</h4>
-                            <pre className="bg-secondary p-2 rounded text-xs overflow-auto max-h-32">
-                              {result.responseBody}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                  ))}
-                </Tabs>
-              </div>
-            ) : (
-              <p className="text-muted-foreground">
-                Selecciona una ejecución para ver el detalle
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }

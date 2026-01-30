@@ -1,42 +1,47 @@
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
 
-interface Step {
+export interface Step {
   id: number;
   title: string;
   description?: string;
 }
 
 interface StepperProps {
-  steps: Step[];
+  steps: Step[] | string[];
   currentStep: number;
   onStepClick?: (step: number) => void;
 }
 
 export function Stepper({ steps, currentStep, onStepClick }: StepperProps) {
+  // Normalizar steps a formato Step[]
+  const normalizedSteps: Step[] = steps.map((s, i) => 
+    typeof s === 'string' ? { id: i, title: s } : s
+  );
+
   return (
     <div className="w-full">
       <div className="flex items-center justify-between">
-        {steps.map((step, index) => (
+        {normalizedSteps.map((step, index) => (
           <div key={step.id} className="flex items-center flex-1">
             {/* Step circle */}
             <button
-              onClick={() => onStepClick?.(step.id)}
+              onClick={() => onStepClick?.(index)}
               disabled={!onStepClick}
               className={cn(
                 'flex items-center justify-center w-10 h-10 rounded-full border-2 font-semibold text-sm transition-all',
-                currentStep > step.id
+                currentStep > index
                   ? 'bg-primary border-primary text-primary-foreground'
-                  : currentStep === step.id
+                  : currentStep === index
                   ? 'border-primary text-primary bg-primary/10'
                   : 'border-muted-foreground/30 text-muted-foreground',
                 onStepClick && 'cursor-pointer hover:border-primary/50'
               )}
             >
-              {currentStep > step.id ? (
+              {currentStep > index ? (
                 <Check className="w-5 h-5" />
               ) : (
-                step.id
+                index + 1
               )}
             </button>
 
@@ -45,7 +50,7 @@ export function Stepper({ steps, currentStep, onStepClick }: StepperProps) {
               <p
                 className={cn(
                   'text-sm font-medium',
-                  currentStep >= step.id ? 'text-foreground' : 'text-muted-foreground'
+                  currentStep >= index ? 'text-foreground' : 'text-muted-foreground'
                 )}
               >
                 {step.title}
@@ -56,11 +61,11 @@ export function Stepper({ steps, currentStep, onStepClick }: StepperProps) {
             </div>
 
             {/* Connector line */}
-            {index < steps.length - 1 && (
+            {index < normalizedSteps.length - 1 && (
               <div
                 className={cn(
                   'flex-1 h-0.5 mx-4 transition-colors',
-                  currentStep > step.id ? 'bg-primary' : 'bg-muted-foreground/30'
+                  currentStep > index ? 'bg-primary' : 'bg-muted-foreground/30'
                 )}
               />
             )}

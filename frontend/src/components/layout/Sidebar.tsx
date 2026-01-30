@@ -5,12 +5,17 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: '📊' },
   { name: 'Templates', href: '/templates', icon: '📄' },
   { name: 'Generador', href: '/generator', icon: '⚡' },
-  { name: 'Configuraciones', href: '/configs', icon: '⚙️' },
+  { name: 'Servicios de Test', href: '/servicios', icon: '🔌' },
   { name: 'Ejecuciones', href: '/executions', icon: '🚀' },
 ];
 
 export function Sidebar() {
   const location = useLocation();
+
+  const isActiveRoute = (href: string) => {
+    if (href === '/') return location.pathname === '/';
+    return location.pathname.startsWith(href.replace(/\/$/, ''));
+  };
 
   return (
     <div className="flex h-full w-64 flex-col bg-card border-r">
@@ -20,7 +25,7 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 space-y-1 p-4">
         {navigation.map((item) => {
-          const isActive = location.pathname === item.href;
+          const isActive = isActiveRoute(item.href);
           return (
             <Link
               key={item.name}

@@ -49,18 +49,28 @@ public class BadDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.PresetUsed).HasMaxLength(100);
+            entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("pending");
+            entity.Property(e => e.ExecutionMode).HasMaxLength(20).HasDefaultValue("sequential");
+            entity.Property(e => e.BodyMode).HasMaxLength(30).HasDefaultValue("none");
             entity.HasIndex(e => e.ExecutedAt);
+            entity.HasIndex(e => e.Status);
 
             entity.HasOne(e => e.RequestConfig)
                 .WithMany(c => c.TestExecutions)
                 .HasForeignKey(e => e.RequestConfigId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            entity.HasOne(e => e.Template)
+                .WithMany()
+                .HasForeignKey(e => e.TemplateId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // TestResult
         modelBuilder.Entity<TestResult>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.ExecutedAt);
 
             entity.HasOne(e => e.TestExecution)
                 .WithMany(x => x.Results)

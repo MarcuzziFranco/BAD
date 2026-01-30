@@ -5,7 +5,7 @@ public record CreateRequestConfigDto(
     string Url,
     string Method,
     string? Headers,
-    string AuthType,
+    string? AuthType,
     string? AuthValue,
     int? JsonTemplateId
 );
@@ -15,7 +15,7 @@ public record UpdateRequestConfigDto(
     string Url,
     string Method,
     string? Headers,
-    string AuthType,
+    string? AuthType,
     string? AuthValue,
     int? JsonTemplateId
 );
@@ -30,4 +30,23 @@ public record RequestConfigDto(
     string? AuthValue,
     int? JsonTemplateId,
     DateTime CreatedAt
+);
+
+// DTOs para cURL
+public record ParseCurlRequestDto(string CurlCommand);
+
+public record ParsedCurlDto(
+    string Url,
+    string Method,
+    string? Headers,
+    string? Body,
+    string? AuthType,
+    string? AuthValue,
+    List<string> Warnings
+);
+
+public record CreateFromCurlRequestDto(
+    string CurlCommand,
+    string? Name,
+    int? JsonTemplateId
 );

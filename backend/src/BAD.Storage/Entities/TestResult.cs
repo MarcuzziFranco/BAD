@@ -23,9 +23,19 @@ public class TestResult
     public string RequestPayload { get; set; } = string.Empty;
     
     /// <summary>
+    /// Headers de la request enviados (JSON)
+    /// </summary>
+    public string? RequestHeaders { get; set; }
+    
+    /// <summary>
     /// Cuerpo de la respuesta recibida
     /// </summary>
     public string? ResponseBody { get; set; }
+    
+    /// <summary>
+    /// Headers de la respuesta (JSON)
+    /// </summary>
+    public string? ResponseHeaders { get; set; }
     
     /// <summary>
     /// Código de estado HTTP
@@ -46,6 +56,11 @@ public class TestResult
     /// Indica si la request fue exitosa
     /// </summary>
     public bool IsSuccess { get; set; }
+    
+    /// <summary>
+    /// Timestamp exacto de ejecución
+    /// </summary>
+    public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
 
     // Navegación
     public TestExecution TestExecution { get; set; } = null!;

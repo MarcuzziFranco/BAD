@@ -5,8 +5,11 @@ import { Dashboard } from '@/pages/Dashboard';
 import { Templates } from '@/pages/Templates';
 import { TemplateEditor } from '@/pages/TemplateEditor';
 import { Generator } from '@/pages/Generator';
-import { Configs } from '@/pages/Configs';
+import { ServiciosT } from '@/pages/ServiciosT';
+import { ServicioTEditor } from '@/pages/ServicioTEditor';
 import { Executions } from '@/pages/Executions';
+import { ExecutionWizard } from '@/pages/ExecutionWizard';
+import { ExecutionDetail } from '@/pages/ExecutionDetail';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -28,8 +31,12 @@ function App() {
             <Route path="template-new" element={<TemplateEditor />} />
             <Route path="template-edit/:id" element={<TemplateEditor />} />
             <Route path="generator" element={<Generator />} />
-            <Route path="configs" element={<Configs />} />
+            <Route path="servicios" element={<ServiciosT />} />
+            <Route path="servicios-new" element={<ServicioTEditor />} />
+            <Route path="servicios-edit/:id" element={<ServicioTEditor />} />
             <Route path="executions" element={<Executions />} />
+            <Route path="executions/new" element={<ExecutionWizard />} />
+            <Route path="executions/:id" element={<ExecutionDetail />} />
           </Route>
         </Routes>
       </BrowserRouter>
