@@ -7,6 +7,29 @@ const api = axios.create({
   },
 });
 
+// Interceptor para logging
+api.interceptors.request.use(
+  (config) => {
+    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.url}`, config.data);
+    return config;
+  },
+  (error) => {
+    console.error('[API Request Error]', error);
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => {
+    console.log(`[API Response] ${response.config.url}`, response.data);
+    return response;
+  },
+  (error) => {
+    console.error(`[API Response Error] ${error.config?.url}`, error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
+
 // Types
 export interface JsonTemplate {
   id: number;

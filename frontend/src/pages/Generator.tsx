@@ -100,20 +100,40 @@ export function Generator() {
   });
 
   const generateMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
+      if (!jsonContent) {
+        return Promise.reject(new Error('No JSON content'));
+      }
+
       const activeConfigs = configMode === 'manual'
         ? Object.values(fieldConfigs)
             .filter((c) => c.operation !== 'Random')
             .map(({ originalType, originalValue, ...config }) => config)
         : [];
 
-      return generatorApi.generate({
+      const requestData = {
         jsonContent,
         count,
         presetName: configMode === 'preset' ? (selectedPreset || undefined) : undefined,
         fieldConfigs: activeConfigs.length > 0 ? activeConfigs : undefined,
         outputFormat,
-      });
+      };
+
+      console.log('=== GENERATE REQUEST ===');
+      console.log('Request data:', JSON.stringify(requestData, null, 2));
+
+      try {
+        const response = await generatorApi.generate(requestData);
+        console.log('=== GENERATE RESPONSE ===');
+        console.log('Response:', response.data);
+        return response;
+      } catch (error: any) {
+        console.log('=== GENERATE ERROR ===');
+        console.log('Error:', error);
+        console.log('Error response:', error.response?.data);
+        console.log('Error status:', error.response?.status);
+        throw error;
+      }
     },
     onSuccess: (response) => {
       setGeneratedJsons(response.data.generatedJsons);
@@ -254,17 +274,9 @@ export function Generator() {
             </Button>
           </div>
         </div>
-        {currentStep === 1 ? (
+        {currentStep === 1 && (
           <Button onClick={() => setCurrentStep(2)} disabled={!canProceedToStep2}>
             Siguiente <ArrowRight className="w-4 h-4 ml-1" />
-          </Button>
-        ) : (
-          <Button onClick={handleGenerate} disabled={isGenerating}>
-            {isGenerating ? (
-              <><RefreshCw className="w-4 h-4 mr-1 animate-spin" /> Generando...</>
-            ) : (
-              <><Play className="w-4 h-4 mr-1" /> Generar {count} JSON{count > 1 ? 's' : ''}</>
-            )}
           </Button>
         )}
       </div>
