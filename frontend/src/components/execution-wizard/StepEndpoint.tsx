@@ -238,10 +238,13 @@ const EndpointItem = memo(function EndpointItem({
   onSelect,
 }: EndpointItemProps) {
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onSelect}
+      onKeyDown={(e) => e.key === 'Enter' && onSelect()}
       className={cn(
-        'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors',
+        'w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors cursor-pointer',
         isSelected
           ? 'bg-primary/10 border border-primary/30'
           : 'hover:bg-muted/60 border border-transparent'
@@ -257,16 +260,20 @@ const EndpointItem = memo(function EndpointItem({
       <div className="flex items-center gap-1.5 shrink-0">
         {endpoint.headers && (
           <Tooltip>
-            <TooltipTrigger>
-              <FileJson className="w-3.5 h-3.5 text-muted-foreground" />
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <FileJson className="w-3.5 h-3.5 text-muted-foreground" />
+              </span>
             </TooltipTrigger>
             <TooltipContent>Tiene headers configurados</TooltipContent>
           </Tooltip>
         )}
         {endpoint.authType && endpoint.authType !== 'None' && (
           <Tooltip>
-            <TooltipTrigger>
-              <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+              </span>
             </TooltipTrigger>
             <TooltipContent>Auth: {endpoint.authType}</TooltipContent>
           </Tooltip>
@@ -276,7 +283,7 @@ const EndpointItem = memo(function EndpointItem({
           isSelected ? 'text-primary' : 'text-muted-foreground/40'
         )} />
       </div>
-    </button>
+    </div>
   );
 });
 

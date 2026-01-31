@@ -24,6 +24,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { templatesApi, presetsApi } from '@/services/api';
 import type { ExecutionDraft, BodyMode, MutationMode } from './types';
 import { isValidJson } from './validators';
+import { MutationEditorModal } from './MutationEditorModal';
+import type { FieldConfig } from '@/components/generator/JsonFieldEditor';
 import {
   FileJson,
   FileText,
@@ -33,6 +35,7 @@ import {
   Copy,
   Wand2,
   Info,
+  Settings2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -72,6 +75,25 @@ export const StepBody = memo(function StepBody({
   validation,
 }: StepBodyProps) {
   const [copiedPreview, setCopiedPreview] = useState(false);
+  const [mutationModalOpen, setMutationModalOpen] = useState(false);
+
+  // Parse current mutations from JSON
+  const currentMutations: FieldConfig[] = useMemo(() => {
+    try {
+      const parsed = JSON.parse(draft.mutationRulesJson);
+      if (Array.isArray(parsed)) {
+        return parsed as FieldConfig[];
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  }, [draft.mutationRulesJson]);
+
+  // Handle saving mutations from modal
+  const handleSaveMutations = useCallback((mutations: FieldConfig[]) => {
+    updateDraft({ mutationRulesJson: JSON.stringify(mutations, null, 2) });
+  }, [updateDraft]);
 
   // Check if body is needed
   const noBodyMethods = ['GET', 'DELETE', 'HEAD', 'OPTIONS'];
@@ -307,23 +329,66 @@ export const StepBody = memo(function StepBody({
                 </TabsContent>
 
                 <TabsContent value="manual" className="mt-3">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">
-                      Reglas de mutación (JSON)
-                    </Label>
-                    <Textarea
-                      value={draft.mutationRulesJson}
-                      onChange={(e) => updateDraft({ mutationRulesJson: e.target.value })}
-                      placeholder='[{"key": "field", "operation": "Random"}]'
-                      className="font-mono text-xs h-32 resize-none"
-                    />
-                    <Badge
-                      variant={isValidJson(draft.mutationRulesJson) ? 'outline' : 'destructive'}
-                      className="text-xs"
+                  <div className="space-y-3">
+                    {/* Button to open mutation editor */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-auto py-4 flex flex-col items-center gap-2"
+                      onClick={() => setMutationModalOpen(true)}
                     >
-                      {isValidJson(draft.mutationRulesJson) ? 'JSON válido' : 'JSON inválido'}
-                    </Badge>
+                      <Settings2 className="w-6 h-6 text-primary" />
+                      <div className="text-center">
+                        <p className="font-medium">Configurar Campos</p>
+                        <p className="text-xs text-muted-foreground">
+                          Abre el editor visual para configurar cada campo
+                        </p>
+                      </div>
+                      {currentMutations.length > 0 && (
+                        <Badge variant="secondary" className="mt-1">
+                          {currentMutations.length} campo{currentMutations.length !== 1 ? 's' : ''} configurado{currentMutations.length !== 1 ? 's' : ''}
+                        </Badge>
+                      )}
+                    </Button>
+
+                    {/* Summary of configured mutations */}
+                    {currentMutations.length > 0 && (
+                      <Card className="bg-muted/30">
+                        <CardContent className="p-3">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">
+                            Campos configurados:
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {currentMutations.slice(0, 8).map((m) => (
+                              <Badge key={m.key} variant="outline" className="text-xs">
+                                {m.key.split('.').pop()}: {m.operation}
+                              </Badge>
+                            ))}
+                            {currentMutations.length > 8 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{currentMutations.length - 8} más
+                              </Badge>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Info className="w-3 h-3" />
+                      Configura cada campo individualmente: aleatorio, fijo, rango, lista, etc.
+                    </p>
                   </div>
+
+                  {/* Mutation Editor Modal */}
+                  <MutationEditorModal
+                    open={mutationModalOpen}
+                    onOpenChange={setMutationModalOpen}
+                    jsonContent={previewJson}
+                    templateName={draft.templateName}
+                    initialMutations={currentMutations}
+                    onSave={handleSaveMutations}
+                  />
                 </TabsContent>
               </Tabs>
             </div>

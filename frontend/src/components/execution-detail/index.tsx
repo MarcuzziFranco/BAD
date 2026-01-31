@@ -5,6 +5,9 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 import { executionsApi } from '@/services/api';
 import { ExecutionHeader } from './ExecutionHeader';
 import { ExecutionSummaryBar } from './ExecutionSummaryBar';
@@ -20,18 +23,27 @@ export function ExecutionDetailPage() {
   const [currentPage] = useState(1);
   const pageSize = 50;
 
-  // Fetch execution data
+  // Fetch execution data - poll when running
   const { data: executionData, isLoading: loadingExecution } = useQuery({
     queryKey: ['execution', id],
     queryFn: () => executionsApi.getById(Number(id)).then((res) => res.data),
     enabled: !!id,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      // Poll every 1 second while running
+      return data?.status === 'running' ? 1000 : false;
+    },
   });
 
-  // Fetch results
+  // Fetch results - poll when running
   const { data: resultsData } = useQuery({
     queryKey: ['execution-results', id, currentPage],
     queryFn: () => executionsApi.getResults(Number(id), currentPage, pageSize).then((res) => res.data),
     enabled: !!id,
+    refetchInterval: () => {
+      // Poll every 1 second while execution is running
+      return executionData?.status === 'running' ? 1000 : false;
+    },
   });
 
   // Transform API data to our types
@@ -257,6 +269,31 @@ export function ExecutionDetailPage() {
 
         {/* Summary Bar */}
         <ExecutionSummaryBar execution={execution} outliersCount={outliersCount} />
+
+        {/* Progress indicator when running */}
+        {execution.status === 'running' && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="py-4">
+              <div className="flex items-center gap-4">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium">
+                      Ejecutando prueba...
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {execution.okCount + execution.errorCount} / {execution.totalCount} requests
+                    </span>
+                  </div>
+                  <Progress 
+                    value={((execution.okCount + execution.errorCount) / execution.totalCount) * 100} 
+                    className="h-2"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Main Content - Master/Detail */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-4 min-h-0">
