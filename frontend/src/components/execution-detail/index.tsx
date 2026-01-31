@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -18,10 +18,12 @@ import type { ExecutionSummary, ExecutionRequestResult } from './types';
 export function ExecutionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedResult, setSelectedResult] = useState<ExecutionRequestResult | null>(null);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [currentPage] = useState(1);
   const pageSize = 50;
+  const prevStatusRef = useRef<string | undefined>(undefined);
 
   // Fetch execution data - poll when running
   const { data: executionData, isLoading: loadingExecution } = useQuery({
@@ -30,10 +32,19 @@ export function ExecutionDetailPage() {
     enabled: !!id,
     refetchInterval: (query) => {
       const data = query.state.data;
-      // Poll every 1 second while running
-      return data?.status === 'running' ? 1000 : false;
+      // Poll every 500ms while running for faster updates
+      return data?.status === 'running' ? 500 : false;
     },
   });
+
+  // Track status changes to refetch results when execution completes
+  useEffect(() => {
+    if (executionData?.status && prevStatusRef.current === 'running' && executionData.status !== 'running') {
+      // Execution just completed - fetch final results
+      queryClient.invalidateQueries({ queryKey: ['execution-results', id] });
+    }
+    prevStatusRef.current = executionData?.status;
+  }, [executionData?.status, queryClient, id]);
 
   // Fetch results - poll when running
   const { data: resultsData } = useQuery({
@@ -41,8 +52,11 @@ export function ExecutionDetailPage() {
     queryFn: () => executionsApi.getResults(Number(id), currentPage, pageSize).then((res) => res.data),
     enabled: !!id,
     refetchInterval: () => {
-      // Poll every 1 second while execution is running
-      return executionData?.status === 'running' ? 1000 : false;
+      // Poll every 500ms while execution is running
+      if (executionData?.status === 'running') {
+        return 500;
+      }
+      return false;
     },
   });
 
