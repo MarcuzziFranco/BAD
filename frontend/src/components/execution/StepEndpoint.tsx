@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Combobox } from '@/components/ui/combobox';
+import { CustomCombobox as Combobox } from '@/shared/components/common/CustomCombobox';
 import { configsApi } from '@/services/api';
 import type { RequestConfig } from '@/services/api';
 import { Globe, Key, FileJson, Loader2 } from 'lucide-react';

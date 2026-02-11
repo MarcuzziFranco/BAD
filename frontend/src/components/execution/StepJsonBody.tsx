@@ -4,7 +4,7 @@ import Editor from '@monaco-editor/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Combobox } from '@/components/ui/combobox';
+import { CustomCombobox as Combobox } from '@/shared/components/common/CustomCombobox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { templatesApi, presetsApi, generatorApi } from '@/services/api';
 import type { FieldConfig, JsonField } from '@/services/api';
