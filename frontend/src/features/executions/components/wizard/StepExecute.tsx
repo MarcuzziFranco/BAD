@@ -51,14 +51,22 @@ export const StepExecute = memo(function StepExecute({
         bodyMode: draft.bodyMode,
         baseJson: draft.bodyMode === 'static' ? draft.staticJson : undefined,
         templateId: draft.templateId || undefined,
-        mutations: draft.bodyMode === 'template_mutation' && draft.mutationMode === 'manual'
-          ? JSON.parse(draft.mutationRulesJson)
-          : undefined,
+        mutations:
+          draft.bodyMode === 'template_mutation' && draft.mutationMode === 'manual'
+            ? JSON.parse(draft.mutationRulesJson)
+            : undefined,
         requestCount: draft.requestCount,
         executionMode: draft.executionMode,
         intervalMs: draft.intervalMs,
         mutatePerIteration: draft.regenerateJsonPerRequest,
-        presetName: draft.mutationPresetName || undefined,
+        presetName:
+          draft.bodyMode === 'template_mutation' && draft.mutationMode === 'preset'
+            ? draft.mutationPresetName || undefined
+            : undefined,
+        dataPresetId:
+          draft.bodyMode === 'template_mutation' && draft.mutationMode === 'saved_data'
+            ? draft.dataPresetId || undefined
+            : undefined,
       };
       
       return executionsApi.start(payload);
@@ -346,8 +354,15 @@ function getBodyDescription(draft: ExecutionDraft): string {
       return 'JSON estático';
     case 'template':
       return draft.templateName || 'Template seleccionado';
-    case 'template_mutation':
-      return `${draft.templateName || 'Template'} + ${draft.mutationPresetName || 'mutación manual'}`;
+    case 'template_mutation': {
+      const mut =
+        draft.mutationMode === 'preset'
+          ? `preset sistema: ${draft.mutationPresetName || '?'}`
+          : draft.mutationMode === 'saved_data'
+            ? `preset guardado: ${draft.dataPresetName || '?'}`
+            : 'manual';
+      return `${draft.templateName || 'Template'} + ${mut}`;
+    }
     default:
       return '';
   }

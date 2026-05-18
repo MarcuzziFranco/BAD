@@ -54,7 +54,10 @@ export function validateBodyStep(draft: ExecutionDraft): StepValidation {
         errors.push('Selecciona un template');
       }
       if (draft.mutationMode === 'preset' && !draft.mutationPresetName) {
-        errors.push('Selecciona un preset de mutación');
+        errors.push('Selecciona un preset de mutación del sistema');
+      }
+      if (draft.mutationMode === 'saved_data' && !draft.dataPresetId) {
+        errors.push('Selecciona un preset de datos guardado');
       }
       if (draft.mutationMode === 'manual') {
         if (!isValidJson(draft.mutationRulesJson)) {

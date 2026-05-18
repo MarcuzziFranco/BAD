@@ -24,7 +24,8 @@ public record CreateExecutionDto(
     string ExecutionMode, // sequential, parallel, burst
     int IntervalMs,
     bool MutatePerIteration,
-    string? PresetName
+    string? PresetName,
+    int? DataPresetId = null
 );
 
 // DTO para listar ejecuciones

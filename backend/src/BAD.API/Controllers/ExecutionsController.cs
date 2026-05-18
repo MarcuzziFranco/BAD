@@ -165,6 +165,35 @@ public class ExecutionsController : ControllerBase
             }
         }
 
+        string? presetUsedLabel = dto.PresetName;
+        List<FieldConfigDto>? effectiveMutations = dto.Mutations;
+        string? executionPresetName = dto.PresetName;
+
+        if (dto.DataPresetId.HasValue)
+        {
+            var gs = await _context.GeneratorSettings.AsNoTracking()
+                .FirstOrDefaultAsync(g => g.Id == dto.DataPresetId.Value);
+
+            if (gs == null)
+                return NotFound("Preset de datos no encontrado");
+
+            if (!dto.TemplateId.HasValue || gs.JsonTemplateId != dto.TemplateId.Value)
+                return BadRequest("El preset de datos debe corresponder al template seleccionado.");
+
+            try
+            {
+                effectiveMutations = JsonConvert.DeserializeObject<List<FieldConfigDto>>(gs.FieldConfigurations)
+                    ?? new List<FieldConfigDto>();
+            }
+            catch
+            {
+                return BadRequest("Preset de datos con configuración inválida");
+            }
+
+            presetUsedLabel = $"data-preset:{gs.Name}";
+            executionPresetName = null;
+        }
+
         try
         {
             // Crear registro de ejecución
@@ -175,11 +204,13 @@ public class ExecutionsController : ControllerBase
                 ExecutionMode = dto.ExecutionMode,
                 BodyMode = dto.BodyMode,
                 BaseJson = baseJson,
-                MutationsConfig = dto.Mutations != null ? JsonConvert.SerializeObject(dto.Mutations) : null,
+                MutationsConfig = effectiveMutations != null && effectiveMutations.Count > 0
+                    ? JsonConvert.SerializeObject(effectiveMutations)
+                    : null,
                 TemplateId = dto.TemplateId,
                 IntervalMs = dto.IntervalMs,
                 MutatePerIteration = dto.MutatePerIteration,
-                PresetUsed = dto.PresetName,
+                PresetUsed = presetUsedLabel,
                 TotalRequests = dto.RequestCount,
                 ExecutedAt = DateTime.UtcNow
             };
@@ -203,7 +234,7 @@ public class ExecutionsController : ControllerBase
                 AuthValue = requestConfig.AuthValue,
                 BodyMode = dto.BodyMode,
                 BaseJson = baseJson,
-                Mutations = dto.Mutations?.Select(m => new ExecutionService.FieldMutationConfig
+                Mutations = effectiveMutations?.Select(m => new ExecutionService.FieldMutationConfig
                 {
                     Key = m.Key,
                     Operation = m.Operation,
@@ -212,7 +243,7 @@ public class ExecutionsController : ControllerBase
                     MaxValue = m.MaxValue,
                     ListValues = m.ListValues
                 }).ToList(),
-                PresetName = dto.PresetName,
+                PresetName = executionPresetName,
                 RequestCount = dto.RequestCount,
                 ExecutionMode = dto.ExecutionMode,
                 IntervalMs = dto.IntervalMs,
@@ -430,8 +461,8 @@ public class ExecutionsController : ControllerBase
             original.ExecutionMode,
             original.IntervalMs,
             original.MutatePerIteration,
-            original.PresetUsed
-        );
+            original.PresetUsed,
+            null);
 
         return await Start(createDto);
     }
@@ -453,8 +484,8 @@ public class ExecutionsController : ControllerBase
             dto.Sequential ? "sequential" : "parallel",
             0,
             true,
-            dto.PresetName
-        );
+            dto.PresetName,
+            null);
 
         return await Start(createDto);
     }

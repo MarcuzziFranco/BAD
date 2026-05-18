@@ -56,6 +56,8 @@ export function NewExecutionWizardPage() {
   // Apply rerun data when loaded
   useEffect(() => {
     if (rerunData && isLoaded) {
+      const mutJson = rerunData.mutationsConfig?.trim();
+      const hasMutations = !!mutJson && mutJson !== '[]';
       loadFromExecution({
         endpointId: rerunData.requestConfigId,
         endpointMethod: rerunData.requestConfigMethod || 'POST',
@@ -65,7 +67,11 @@ export function NewExecutionWizardPage() {
         staticJson: rerunData.baseJson || '{}',
         templateId: rerunData.templateId || null,
         templateName: rerunData.templateName || null,
-        mutationPresetName: rerunData.presetUsed || null,
+        mutationMode: hasMutations ? 'manual' : 'preset',
+        mutationRulesJson: mutJson || '[]',
+        mutationPresetName: hasMutations ? null : rerunData.presetUsed || null,
+        dataPresetId: null,
+        dataPresetName: null,
         requestCount: rerunData.totalRequests,
         executionMode: (rerunData.executionMode as 'sequential' | 'parallel' | 'burst') || 'sequential',
         intervalMs: rerunData.intervalMs,

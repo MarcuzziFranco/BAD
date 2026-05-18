@@ -10,6 +10,7 @@ export type { JsonField, FieldConfig, PaginatedResults, ParsedCurl } from '@/sha
 
 // Templates
 export { templatesApi } from '@/features/templates/api/templates.api';
+export { dataPresetsApi } from '@/features/templates/api/data-presets.api';
 export type { JsonTemplate } from '@/features/templates/types/templates.types';
 
 // Generator

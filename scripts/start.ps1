@@ -13,16 +13,16 @@ Write-Host "http://localhost:5013/swagger" -ForegroundColor Yellow
 Write-Host ""
 
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoRoot = (Resolve-Path (Join-Path $scriptPath '..')).Path
 
-# Iniciar backend
-$backendPath = Join-Path $scriptPath "backend\src\BAD.API"
+& (Join-Path $scriptPath "stop.ps1")
+
+$backendPath = Join-Path $repoRoot "backend\src\BAD.API"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$backendPath'; dotnet run" -WindowStyle Normal
 
-# Esperar 3 segundos
 Start-Sleep -Seconds 3
 
-# Iniciar frontend
-$frontendPath = Join-Path $scriptPath "frontend"
+$frontendPath = Join-Path $repoRoot "frontend"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$frontendPath'; npm run dev" -WindowStyle Normal
 
 Write-Host ""

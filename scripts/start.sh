@@ -10,18 +10,18 @@ echo ""
 echo "Swagger UI: http://localhost:5013/swagger"
 echo ""
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Iniciar backend en background
-cd "$SCRIPT_DIR/backend/src/BAD.API"
+"$SCRIPT_DIR/stop.sh" || true
+
+cd "$REPO_ROOT/backend/src/BAD.API"
 dotnet run &
 BACKEND_PID=$!
 
-# Esperar 3 segundos
 sleep 3
 
-# Iniciar frontend en background
-cd "$SCRIPT_DIR/frontend"
+cd "$REPO_ROOT/frontend"
 npm run dev &
 FRONTEND_PID=$!
 
@@ -32,8 +32,6 @@ echo "Frontend PID: $FRONTEND_PID"
 echo ""
 echo "Presiona Ctrl+C para detener ambos servicios..."
 
-# Trap para limpiar al salir
 trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit" SIGINT SIGTERM
 
-# Esperar
 wait

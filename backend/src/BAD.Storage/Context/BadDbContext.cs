@@ -83,6 +83,9 @@ public class BadDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(500);
+
+            entity.HasIndex(e => new { e.JsonTemplateId, e.Name }).IsUnique();
 
             entity.HasOne(e => e.JsonTemplate)
                 .WithMany(t => t.GeneratorSettings)

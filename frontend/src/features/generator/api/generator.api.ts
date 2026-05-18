@@ -1,5 +1,5 @@
 import { api } from '@/shared/api/axios.instance';
-import type { JsonField } from '@/shared/types/api.types';
+import type { JsonField, FieldConfig } from '@/shared/types/api.types';
 import type {
   Preset,
   PresetCategory,
@@ -18,4 +18,6 @@ export const generatorApi = {
   analyze: (jsonContent: string) =>
     api.post<{ fields: JsonField[] }>('/generator/analyze', { jsonContent }),
   getOperations: () => api.get<OperationsResponse>('/generator/operations'),
+  expandPreset: (jsonContent: string, presetName: string) =>
+    api.post<FieldConfig[]>('/generator/expand-preset', { jsonContent, presetName }),
 };

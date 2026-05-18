@@ -37,3 +37,5 @@ public record JsonFieldDto(
 );
 
 public record AnalyzeResponseDto(List<JsonFieldDto> Fields);
+
+public record ExpandPresetRequestDto(string JsonContent, string PresetName);

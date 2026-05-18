@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import Editor from '@monaco-editor/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,12 +17,20 @@ import {
 } from '@/components/ui/select';
 import { CustomCombobox as Combobox } from '@/shared/components/common/CustomCombobox';
 import { PageBreadcrumb } from '@/shared/components/common/PageBreadcrumb';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { templatesApi } from '@/features/templates/api/templates.api';
+import { dataPresetsApi } from '@/features/templates/api/data-presets.api';
 import { presetsApi, generatorApi } from '../api/generator.api';
-import type { JsonField } from '@/shared/types/api.types';
+import type { JsonField, FieldConfig } from '@/shared/types/api.types';
 import { 
   Upload, Play, Eye, Download, Database, FileJson, RefreshCw, Code, TreeDeciduous,
-  Sparkles, Shuffle, ArrowRight, ArrowLeft, CheckCircle2, Wand2, Hand,
+  Sparkles, Shuffle, ArrowRight, ArrowLeft, CheckCircle2, Wand2, Hand, Save, FolderOpen,
 } from 'lucide-react';
 import { JsonVisualizer } from '../components/JsonFieldEditor';
 import type { FieldConfig as LocalFieldConfig } from '../components/JsonFieldEditor';
@@ -35,6 +44,7 @@ interface FieldConfigState extends LocalFieldConfig {
 }
 
 export function GeneratorPage() {
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [currentStep, setCurrentStep] = useState(1);
@@ -52,6 +62,12 @@ export function GeneratorPage() {
   const [generatedJsons, setGeneratedJsons] = useState<string[]>([]);
   const [selectedGeneratedIndex, setSelectedGeneratedIndex] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [dataPresetDialogOpen, setDataPresetDialogOpen] = useState(false);
+  const [dataPresetName, setDataPresetName] = useState('');
+  const [dataPresetDescription, setDataPresetDescription] = useState('');
+  const [dataPresetLoadSelection, setDataPresetLoadSelection] = useState<string>('_none');
+
+  const templateIdNum = selectedTemplateId ? parseInt(selectedTemplateId, 10) : NaN;
 
   const { data: templates } = useQuery({
     queryKey: ['templates'],
@@ -61,6 +77,12 @@ export function GeneratorPage() {
   const { data: presets } = useQuery({
     queryKey: ['presets'],
     queryFn: () => presetsApi.getAll().then((res) => res.data),
+  });
+
+  const { data: dataPresetsList } = useQuery({
+    queryKey: ['data-presets', templateIdNum],
+    queryFn: () => dataPresetsApi.list(templateIdNum).then((res) => res.data),
+    enabled: Number.isFinite(templateIdNum),
   });
 
   const analyzeMutation = useMutation({
@@ -110,6 +132,41 @@ export function GeneratorPage() {
     },
   });
 
+  const saveDataPresetMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedTemplateId) throw new Error('Selecciona un template guardado');
+      if (!jsonContent?.trim()) throw new Error('No hay JSON para este preset');
+
+      let configs: FieldConfig[];
+      if (configMode === 'manual') {
+        configs = Object.values(fieldConfigs)
+          .filter((c) => c.operation !== 'Random')
+          .map(({ originalType, originalValue, ...rest }) => rest);
+      } else {
+        const preset = selectedPreset || 'Aleatorio';
+        const res = await generatorApi.expandPreset(jsonContent, preset);
+        configs = res.data;
+      }
+
+      return dataPresetsApi.create(parseInt(selectedTemplateId, 10), {
+        name: dataPresetName.trim(),
+        description: dataPresetDescription.trim() || undefined,
+        fieldConfigurationsJson: JSON.stringify(configs),
+      });
+    },
+    onSuccess: () => {
+      toast.success('Preset de datos guardado');
+      queryClient.invalidateQueries({ queryKey: ['data-presets'] });
+      setDataPresetDialogOpen(false);
+      setDataPresetName('');
+      setDataPresetDescription('');
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : 'Error al guardar';
+      toast.error(msg);
+    },
+  });
+
   const templateOptions = useMemo(() => {
     return (templates || []).map((t) => ({
       value: t.id.toString(),
@@ -117,6 +174,32 @@ export function GeneratorPage() {
       description: t.description || undefined,
     }));
   }, [templates]);
+
+  useEffect(() => {
+    setDataPresetLoadSelection('_none');
+  }, [selectedTemplateId]);
+
+  const applyLoadedDataPreset = useCallback(
+    (configs: FieldConfig[]) => {
+      const next: Record<string, FieldConfigState> = {};
+      fields.forEach((field) => {
+        const match = configs.find((c) => c.key === field.key);
+        next[field.key] = {
+          key: field.key,
+          originalType: field.type,
+          originalValue: field.value,
+          operation: match?.operation ?? 'Random',
+          value: match?.value,
+          minValue: match?.minValue,
+          maxValue: match?.maxValue,
+          listValues: match?.listValues,
+        };
+      });
+      setFieldConfigs(next);
+      setConfigMode('manual');
+    },
+    [fields],
+  );
 
   useEffect(() => {
     if (selectedTemplateId && templates) {
@@ -338,6 +421,55 @@ export function GeneratorPage() {
               </>
             )}
 
+            {selectedTemplateId && fields.length > 0 && (
+              <>
+                <Separator orientation="vertical" className="!h-6" />
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground shrink-0">Preset guardado:</span>
+                  <Select
+                    value={dataPresetLoadSelection}
+                    onValueChange={async (v) => {
+                      setDataPresetLoadSelection(v);
+                      if (v === '_none' || !Number.isFinite(templateIdNum)) return;
+                      const id = parseInt(v, 10);
+                      try {
+                        const { data } = await dataPresetsApi.getById(templateIdNum, id);
+                        applyLoadedDataPreset(data.fieldConfigurations);
+                        toast.success(`Preset de datos "${data.name}" cargado`);
+                      } catch {
+                        toast.error('No se pudo cargar el preset de datos');
+                        setDataPresetLoadSelection('_none');
+                      }
+                    }}
+                    disabled={dataPresetsList !== undefined && dataPresetsList.length === 0}
+                  >
+                    <SelectTrigger className="w-52 h-8">
+                      <FolderOpen className="w-3.5 h-3.5 mr-1 shrink-0 opacity-70" />
+                      <SelectValue placeholder={dataPresetsList?.length ? 'Cargar…' : 'Sin presets'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="_none">— Ninguno —</SelectItem>
+                      {dataPresetsList?.map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 gap-1"
+                  onClick={() => setDataPresetDialogOpen(true)}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  Guardar preset de datos
+                </Button>
+              </>
+            )}
+
             <div className="flex-1" />
 
             {configMode === 'manual' && jsonContent && (
@@ -526,6 +658,55 @@ export function GeneratorPage() {
           </Card>
         </div>
       )}
+
+      <Dialog open={dataPresetDialogOpen} onOpenChange={setDataPresetDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Guardar preset de datos</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se guarda la configuración de campos actual (modo manual o expansión del preset del sistema) para el
+            template seleccionado. Podrás elegirlo en el asistente de ejecución.
+          </p>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label htmlFor="dp-name">Nombre</Label>
+              <Input
+                id="dp-name"
+                value={dataPresetName}
+                onChange={(e) => setDataPresetName(e.target.value)}
+                placeholder="Ej. Payload QA límites"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="dp-desc">Descripción (opcional)</Label>
+              <Input
+                id="dp-desc"
+                value={dataPresetDescription}
+                onChange={(e) => setDataPresetDescription(e.target.value)}
+                placeholder="Notas para el equipo"
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDataPresetDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={!dataPresetName.trim() || saveDataPresetMutation.isPending}
+              onClick={() => {
+                if (!dataPresetName.trim()) return;
+                saveDataPresetMutation.mutate();
+              }}
+            >
+              {saveDataPresetMutation.isPending ? 'Guardando…' : 'Guardar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

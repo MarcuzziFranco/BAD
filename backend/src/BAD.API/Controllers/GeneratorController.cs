@@ -1,4 +1,5 @@
 using BAD.API.DTOs;
+using BAD.API.Helpers;
 using BAD.Core.Analysis;
 using BAD.Core.Configurations;
 using BAD.Core.Generators;
@@ -22,6 +23,31 @@ public class GeneratorController : ControllerBase
     {
         _presetManager = new PresetManager();
         _context = context;
+    }
+
+    /// <summary>
+    /// Expande un preset del sistema a lista de configuraciones por campo (para guardar como preset de datos).
+    /// </summary>
+    [HttpPost("expand-preset")]
+    public ActionResult<List<FieldConfigDto>> ExpandPreset([FromBody] ExpandPresetRequestDto request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.PresetName))
+                return BadRequest(new { error = "PresetName es obligatorio" });
+
+            var preset = _presetManager.GetPresetByName(request.PresetName);
+            if (preset == null)
+                return NotFound(new { error = "Preset no encontrado" });
+
+            var jsonObject = JObject.Parse(request.JsonContent);
+            var list = PresetFieldConfigFactory.Expand(preset, jsonObject);
+            return Ok(list);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     /// <summary>

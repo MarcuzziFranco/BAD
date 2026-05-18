@@ -88,4 +88,5 @@ export interface CreateExecutionRequest {
   intervalMs: number;
   mutatePerIteration: boolean;
   presetName?: string;
+  dataPresetId?: number;
 }

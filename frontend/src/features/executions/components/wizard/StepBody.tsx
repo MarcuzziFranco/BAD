@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/accordion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { templatesApi } from '@/features/templates/api/templates.api';
+import { dataPresetsApi } from '@/features/templates/api/data-presets.api';
 import { presetsApi } from '@/features/generator/api/generator.api';
 import type { ExecutionDraft, BodyMode, MutationMode } from './types';
 import { isValidJson } from '../../validators/execution.validators';
@@ -107,11 +108,18 @@ export const StepBody = memo(function StepBody({
     enabled: needsBody,
   });
 
-  // Fetch presets
+  // Fetch presets del sistema
   const { data: presetCategories } = useQuery({
     queryKey: ['presets-grouped'],
     queryFn: () => presetsApi.getGrouped().then((res) => res.data),
     enabled: needsBody && draft.bodyMode === 'template_mutation',
+  });
+
+  // Presets de datos guardados (por template)
+  const { data: dataPresets } = useQuery({
+    queryKey: ['data-presets', draft.templateId],
+    queryFn: () => dataPresetsApi.list(draft.templateId!).then((res) => res.data),
+    enabled: needsBody && draft.bodyMode === 'template_mutation' && !!draft.templateId,
   });
 
   // Get selected template content
@@ -249,6 +257,8 @@ export const StepBody = memo(function StepBody({
                   updateDraft({
                     templateId: parseInt(value),
                     templateName: template?.name || null,
+                    dataPresetId: null,
+                    dataPresetName: null,
                   });
                 }}
               >
@@ -284,14 +294,24 @@ export const StepBody = memo(function StepBody({
 
               <Tabs
                 value={draft.mutationMode}
-                onValueChange={(v) => updateDraft({ mutationMode: v as MutationMode })}
+                onValueChange={(v) => {
+                  const mode = v as MutationMode;
+                  updateDraft({
+                    mutationMode: mode,
+                    ...(mode !== 'preset' ? { mutationPresetName: null } : {}),
+                    ...(mode !== 'saved_data' ? { dataPresetId: null, dataPresetName: null } : {}),
+                  });
+                }}
               >
-                <TabsList className="w-full">
-                  <TabsTrigger value="preset" className="flex-1">
-                    Usar Preset
+                <TabsList className="grid w-full grid-cols-3 h-auto gap-1">
+                  <TabsTrigger value="preset" className="text-xs px-2">
+                    Preset sistema
                   </TabsTrigger>
-                  <TabsTrigger value="manual" className="flex-1">
+                  <TabsTrigger value="manual" className="text-xs px-2">
                     Manual
+                  </TabsTrigger>
+                  <TabsTrigger value="saved_data" className="text-xs px-2">
+                    Preset guardado
                   </TabsTrigger>
                 </TabsList>
 
@@ -325,7 +345,7 @@ export const StepBody = memo(function StepBody({
                   </Select>
                   <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                     <Info className="w-3 h-3" />
-                    Los presets aplican mutaciones predefinidas a cada campo según su tipo
+                    Presets de mutación definidos en código (aleatorio, límites, etc.)
                   </p>
                 </TabsContent>
 
@@ -390,6 +410,43 @@ export const StepBody = memo(function StepBody({
                     initialMutations={currentMutations}
                     onSave={handleSaveMutations}
                   />
+                </TabsContent>
+
+                <TabsContent value="saved_data" className="mt-3">
+                  <Select
+                    value={draft.dataPresetId != null ? String(draft.dataPresetId) : ''}
+                    onValueChange={(value) => {
+                      const id = parseInt(value, 10);
+                      const preset = dataPresets?.find((p) => p.id === id);
+                      updateDraft({
+                        dataPresetId: id,
+                        dataPresetName: preset?.name ?? null,
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un preset de datos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {dataPresets?.length === 0 && (
+                        <div className="px-2 py-3 text-xs text-muted-foreground">
+                          No hay presets guardados para este template. Créalos en el Generador.
+                        </div>
+                      )}
+                      {dataPresets?.map((p) => (
+                        <SelectItem key={p.id} value={String(p.id)}>
+                          {p.name}
+                          {p.description ? (
+                            <span className="text-muted-foreground ml-1">— {p.description}</span>
+                          ) : null}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                    <Info className="w-3 h-3" />
+                    Configuraciones de campos guardadas para este template (persistidas en BD).
+                  </p>
                 </TabsContent>
               </Tabs>
             </div>

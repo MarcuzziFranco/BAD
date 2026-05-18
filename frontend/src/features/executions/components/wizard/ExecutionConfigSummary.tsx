@@ -155,9 +155,11 @@ export const ExecutionConfigSummary = memo(function ExecutionConfigSummary({
                   <div className="flex items-center gap-1.5">
                     <Sparkles className="w-3 h-3 text-primary" />
                     <span className="text-xs text-muted-foreground">
-                      {draft.mutationMode === 'preset' 
+                      {draft.mutationMode === 'preset'
                         ? draft.mutationPresetName || 'Sin preset'
-                        : 'Manual'}
+                        : draft.mutationMode === 'saved_data'
+                          ? `Guardado: ${draft.dataPresetName || '—'}`
+                          : 'Manual'}
                     </span>
                   </div>
                 )}

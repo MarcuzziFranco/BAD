@@ -2,7 +2,7 @@
 
 export type BodyMode = 'static' | 'template' | 'template_mutation';
 export type ExecutionMode = 'sequential' | 'parallel' | 'burst';
-export type MutationMode = 'preset' | 'manual';
+export type MutationMode = 'preset' | 'manual' | 'saved_data';
 
 export interface ExecutionDraft {
   // Paso 1: Endpoint
@@ -21,6 +21,8 @@ export interface ExecutionDraft {
   templateName: string | null;
   mutationMode: MutationMode;
   mutationPresetName: string | null;
+  dataPresetId: number | null;
+  dataPresetName: string | null;
   mutationRulesJson: string;
 
   // Paso 3: Modo
@@ -53,6 +55,8 @@ export const DEFAULT_DRAFT: ExecutionDraft = {
   templateName: null,
   mutationMode: 'preset',
   mutationPresetName: null,
+  dataPresetId: null,
+  dataPresetName: null,
   mutationRulesJson: '[]',
 
   requestCount: 10,
