@@ -4,6 +4,7 @@ using BAD.Core.Flow;
 using BAD.Storage.Context;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace BAD.API.Controllers;
 
@@ -132,5 +133,103 @@ public class FlowsController : ControllerBase
         _db.ExecutionFlows.Remove(entity);
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    [HttpGet("{id:int}/runs")]
+    public async Task<ActionResult<IEnumerable<FlowRunDto>>> ListRuns(int id, [FromQuery] int take = 5)
+    {
+        var exists = await _db.ExecutionFlows.AsNoTracking().AnyAsync(f => f.Id == id);
+        if (!exists)
+            return NotFound();
+
+        var runs = await _db.FlowRuns.AsNoTracking()
+            .Where(r => r.ExecutionFlowId == id)
+            .OrderByDescending(r => r.StartedAt)
+            .Take(Math.Clamp(take, 1, 50))
+            .Select(r => new FlowRunDto(
+                r.Id,
+                r.ExecutionFlowId,
+                r.Status,
+                r.RequestCount,
+                r.ExecutionMode,
+                r.IntervalMs,
+                r.MutatePerIteration,
+                r.Error,
+                r.StartedAt,
+                r.FinishedAt))
+            .ToListAsync();
+
+        return Ok(runs);
+    }
+
+    [HttpPost("preview-merge")]
+    public async Task<ActionResult<FlowPreviewMergeResponseDto>> PreviewMerge(
+        [FromBody] FlowPreviewMergeRequestDto dto,
+        CancellationToken ct)
+    {
+        try
+        {
+            var step = MapStep(dto.Step);
+            var merged = await FlowPreviewService.PreviewMergeAsync(_db, step, dto.ParentBodies, ct);
+            return Ok(new FlowPreviewMergeResponseDto(merged));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("probe-step")]
+    public async Task<ActionResult<FlowProbeStepResponseDto>> ProbeStep(
+        [FromBody] FlowPreviewMergeRequestDto dto,
+        CancellationToken ct)
+    {
+        try
+        {
+            var step = MapStep(dto.Step);
+            var result = await FlowPreviewService.ProbeStepAsync(_db, step, dto.ParentBodies, ct);
+            return Ok(new FlowProbeStepResponseDto(
+                result.RequestPayload,
+                result.ResponseBody,
+                result.StatusCode,
+                result.IsSuccess,
+                result.Error,
+                result.MergedJson));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    private static FlowStepV1 MapStep(FlowStepPreviewRequestDto dto)
+    {
+        var json = JsonConvert.SerializeObject(new
+        {
+            requestConfigId = dto.RequestConfigId,
+            bodyMode = dto.BodyMode,
+            baseJson = dto.BaseJson,
+            templateId = dto.TemplateId,
+            mutations = dto.Mutations?.Select(m => new
+            {
+                key = m.Key,
+                operation = m.Operation,
+                value = m.Value,
+                minValue = m.MinValue,
+                maxValue = m.MaxValue,
+                listValues = m.ListValues
+            }),
+            presetName = dto.PresetName,
+            dataPresetId = dto.DataPresetId,
+            mutatePerIteration = dto.MutatePerIteration,
+            inputMappings = (dto.InputMappings ?? new List<FlowInputMappingPreviewDto>()).Select(m => new
+            {
+                fromNodeId = m.FromNodeId,
+                sourcePath = m.SourcePath,
+                targetPath = m.TargetPath
+            })
+        });
+        return JsonConvert.DeserializeObject<FlowStepV1>(json)
+               ?? throw new FlowDefinitionException("Paso inválido.");
     }
 }

@@ -29,7 +29,10 @@ public record RequestConfigDto(
     string AuthType,
     string? AuthValue,
     int? JsonTemplateId,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string SourceGroup,
+    int? ApiCatalogId = null,
+    string? OpenApiOperationKey = null
 );
 
 // DTOs para cURL

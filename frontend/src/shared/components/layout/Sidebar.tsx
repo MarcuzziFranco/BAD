@@ -6,6 +6,7 @@ import {
   Plug,
   Rocket,
   GitBranch,
+  FileCode2,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Servicios', href: '/servicios', icon: Plug },
   { name: 'Ejecuciones', href: '/executions', icon: Rocket },
   { name: 'Flujos', href: '/flows', icon: GitBranch },
+  { name: 'Importaciones API', href: '/openapi', icon: FileCode2 },
 ];
 
 export function AppSidebar() {

@@ -1,6 +1,7 @@
 using BAD.API.DTOs;
 using BAD.Storage.Context;
 using BAD.Storage.Entities;
+using ResourceGroups = BAD.Storage.Entities.ResourceGroups;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,51 +18,43 @@ public class JsonTemplatesController : ControllerBase
         _context = context;
     }
 
-    /// <summary>
-    /// Obtiene todos los templates JSON
-    /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<JsonTemplateDto>>> GetAll()
     {
-        var templates = await _context.JsonTemplates
+        var rows = await _context.JsonTemplates
             .OrderByDescending(t => t.UpdatedAt)
-            .Select(t => new JsonTemplateDto(
-                t.Id,
-                t.Name,
-                t.Description,
-                t.Content,
-                t.CreatedAt,
-                t.UpdatedAt
-            ))
             .ToListAsync();
+
+        var linked = await _context.RequestConfigs
+            .Where(c => c.JsonTemplateId != null)
+            .Select(c => new { c.JsonTemplateId, c.Id, c.Name, c.Method, c.Url })
+            .ToListAsync();
+
+        var byTemplate = linked
+            .GroupBy(x => x.JsonTemplateId!.Value)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<LinkedRequestConfigSummary>)g.Select(x =>
+                new LinkedRequestConfigSummary(x.Id, x.Name, x.Method, x.Url)).ToList());
+
+        var templates = rows.Select(t =>
+        {
+            byTemplate.TryGetValue(t.Id, out var services);
+            return ToDto(t, services ?? Array.Empty<LinkedRequestConfigSummary>());
+        }).ToList();
 
         return Ok(templates);
     }
 
-    /// <summary>
-    /// Obtiene un template por ID
-    /// </summary>
     [HttpGet("{id}")]
     public async Task<ActionResult<JsonTemplateDto>> GetById(int id)
     {
         var template = await _context.JsonTemplates.FindAsync(id);
-
         if (template == null)
             return NotFound();
 
-        return Ok(new JsonTemplateDto(
-            template.Id,
-            template.Name,
-            template.Description,
-            template.Content,
-            template.CreatedAt,
-            template.UpdatedAt
-        ));
+        var linked = await GetLinkedServicesAsync(id);
+        return Ok(ToDto(template, linked));
     }
 
-    /// <summary>
-    /// Crea un nuevo template JSON
-    /// </summary>
     [HttpPost]
     public async Task<ActionResult<JsonTemplateDto>> Create(CreateJsonTemplateDto dto)
     {
@@ -70,6 +63,7 @@ public class JsonTemplatesController : ControllerBase
             Name = dto.Name,
             Description = dto.Description,
             Content = dto.Content,
+            SourceGroup = ResourceGroups.Manual,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -77,26 +71,24 @@ public class JsonTemplatesController : ControllerBase
         _context.JsonTemplates.Add(template);
         await _context.SaveChangesAsync();
 
-        var result = new JsonTemplateDto(
-            template.Id,
-            template.Name,
-            template.Description,
-            template.Content,
-            template.CreatedAt,
-            template.UpdatedAt
-        );
+        try
+        {
+            if (dto.LinkRequestConfigId is > 0)
+                await LinkTemplateToServiceAsync(template.Id, dto.LinkRequestConfigId.Value);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
 
-        return CreatedAtAction(nameof(GetById), new { id = template.Id }, result);
+        var linked = await GetLinkedServicesAsync(template.Id);
+        return CreatedAtAction(nameof(GetById), new { id = template.Id }, ToDto(template, linked));
     }
 
-    /// <summary>
-    /// Actualiza un template existente
-    /// </summary>
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, UpdateJsonTemplateDto dto)
     {
         var template = await _context.JsonTemplates.FindAsync(id);
-
         if (template == null)
             return NotFound();
 
@@ -107,23 +99,51 @@ public class JsonTemplatesController : ControllerBase
 
         await _context.SaveChangesAsync();
 
+        if (dto.LinkRequestConfigId is > 0)
+            await LinkTemplateToServiceAsync(id, dto.LinkRequestConfigId.Value);
+
         return NoContent();
     }
 
-    /// <summary>
-    /// Elimina un template
-    /// </summary>
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
         var template = await _context.JsonTemplates.FindAsync(id);
-
         if (template == null)
             return NotFound();
 
         _context.JsonTemplates.Remove(template);
         await _context.SaveChangesAsync();
-
         return NoContent();
     }
+
+    private async Task<List<LinkedRequestConfigSummary>> GetLinkedServicesAsync(int templateId) =>
+        await _context.RequestConfigs
+            .Where(c => c.JsonTemplateId == templateId)
+            .OrderBy(c => c.Name)
+            .Select(c => new LinkedRequestConfigSummary(c.Id, c.Name, c.Method, c.Url))
+            .ToListAsync();
+
+    private async Task LinkTemplateToServiceAsync(int templateId, int requestConfigId)
+    {
+        var config = await _context.RequestConfigs.FindAsync(requestConfigId);
+        if (config == null)
+            throw new InvalidOperationException($"Servicio {requestConfigId} no encontrado.");
+
+        config.JsonTemplateId = templateId;
+        await _context.SaveChangesAsync();
+    }
+
+    private static JsonTemplateDto ToDto(JsonTemplate template, IReadOnlyList<LinkedRequestConfigSummary> linked) =>
+        new(
+            template.Id,
+            template.Name,
+            template.Description,
+            template.Content,
+            template.CreatedAt,
+            template.UpdatedAt,
+            template.SourceGroup,
+            template.ApiCatalogId,
+            template.OpenApiOperationKey,
+            linked);
 }

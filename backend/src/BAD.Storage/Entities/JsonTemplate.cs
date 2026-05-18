@@ -32,7 +32,17 @@ public class JsonTemplate
     /// </summary>
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    public int? ApiCatalogId { get; set; }
+
+    public string? OpenApiOperationKey { get; set; }
+
+    /// <summary>
+    /// Agrupador: nombre del catálogo OpenAPI o <see cref="ResourceGroups.Manual"/>.
+    /// </summary>
+    public string SourceGroup { get; set; } = ResourceGroups.Manual;
+
     // Navegación
+    public ApiCatalog? ApiCatalog { get; set; }
     public ICollection<RequestConfig> RequestConfigs { get; set; } = new List<RequestConfig>();
     public ICollection<GeneratorSetting> GeneratorSettings { get; set; } = new List<GeneratorSetting>();
 }

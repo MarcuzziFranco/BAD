@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -18,14 +18,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PageBreadcrumb } from '@/shared/components/common/PageBreadcrumb';
 import { configsApi } from '../api/servicios.api';
+import { Link } from 'react-router-dom';
 import {
   Plus, Pencil, Trash2, Key, FileJson, Settings2, Search,
 } from 'lucide-react';
+import { MANUAL_SOURCE_GROUP } from '@/shared/constants/resource-groups';
 
 export function ServiciosPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [groupFilter, setGroupFilter] = useState<string>('all');
 
   const { data: configs, isLoading } = useQuery({
     queryKey: ['configs'],
@@ -52,10 +55,25 @@ export function ServiciosPage() {
     return colors[method] || 'bg-gray-500/10 text-gray-600';
   };
 
-  const filteredConfigs = configs?.filter((c) =>
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.url.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const groups = useMemo(() => {
+    const set = new Set((configs ?? []).map((c) => c.sourceGroup));
+    return Array.from(set).sort((a, b) => {
+      if (a === MANUAL_SOURCE_GROUP) return 1;
+      if (b === MANUAL_SOURCE_GROUP) return -1;
+      return a.localeCompare(b);
+    });
+  }, [configs]);
+
+  const filteredConfigs = configs?.filter((c) => {
+    if (groupFilter !== 'all' && c.sourceGroup !== groupFilter) return false;
+    const q = searchTerm.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(q) ||
+      c.url.toLowerCase().includes(q) ||
+      c.sourceGroup.toLowerCase().includes(q) ||
+      (c.openApiOperationKey?.toLowerCase().includes(q) ?? false)
+    );
+  });
 
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col gap-4">
@@ -72,8 +90,8 @@ export function ServiciosPage() {
       </div>
 
       <Card className="flex-1 flex flex-col min-h-0">
-        <div className="p-4 border-b">
-          <div className="relative max-w-sm">
+        <div className="p-4 border-b flex flex-wrap gap-3 items-center">
+          <div className="relative max-w-sm flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Buscar por nombre o URL..."
@@ -82,6 +100,18 @@ export function ServiciosPage() {
               className="pl-9"
             />
           </div>
+          <select
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            value={groupFilter}
+            onChange={(e) => setGroupFilter(e.target.value)}
+          >
+            <option value="all">Todos los grupos</option>
+            {groups.map((g) => (
+              <option key={g} value={g}>
+                {g === MANUAL_SOURCE_GROUP ? 'manual' : g}
+              </option>
+            ))}
+          </select>
         </div>
 
         <CardContent className="flex-1 p-0 overflow-auto">
@@ -90,6 +120,7 @@ export function ServiciosPage() {
               <TableRow>
                 <TableHead className="w-16">Metodo</TableHead>
                 <TableHead>Nombre</TableHead>
+                <TableHead>Grupo</TableHead>
                 <TableHead>URL</TableHead>
                 <TableHead className="w-24">Auth</TableHead>
                 <TableHead className="w-24">Template</TableHead>
@@ -99,7 +130,7 @@ export function ServiciosPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     <Spinner className="mx-auto size-5" />
                   </TableCell>
                 </TableRow>
@@ -112,6 +143,11 @@ export function ServiciosPage() {
                       </span>
                     </TableCell>
                     <TableCell className="font-medium">{config.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[10px] font-normal">
+                        {config.sourceGroup === MANUAL_SOURCE_GROUP ? 'manual' : config.sourceGroup}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="font-mono text-xs text-muted-foreground max-w-[300px] truncate">
                       {config.url}
                     </TableCell>
@@ -126,9 +162,11 @@ export function ServiciosPage() {
                     </TableCell>
                     <TableCell>
                       {config.jsonTemplateId ? (
-                        <Badge variant="secondary" className="text-xs">
-                          <FileJson className="w-3 h-3 mr-1" /> #{config.jsonTemplateId}
-                        </Badge>
+                        <Link to={`/template-edit/${config.jsonTemplateId}`}>
+                          <Badge variant="secondary" className="text-xs hover:bg-secondary/80">
+                            <FileJson className="w-3 h-3 mr-1" /> Template #{config.jsonTemplateId}
+                          </Badge>
+                        </Link>
                       ) : (
                         <span className="text-xs text-muted-foreground">-</span>
                       )}

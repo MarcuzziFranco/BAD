@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,6 @@ import {
   ArrowLeft, Save, Terminal, Settings2, Globe, Key, FileJson,
   AlertCircle, CheckCircle2,
 } from 'lucide-react';
-
 type InputMode = 'manual' | 'curl';
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
@@ -59,6 +58,14 @@ export function ServicioEditorPage() {
     queryKey: ['templates'],
     queryFn: () => templatesApi.getAll().then((res) => res.data),
   });
+
+  const templateOptions = useMemo(() => {
+    const list = templates ?? [];
+    const group = existingConfig?.sourceGroup;
+    if (!group) return list;
+    const same = list.filter((t) => t.sourceGroup === group);
+    return same.length > 0 ? same : list;
+  }, [templates, existingConfig?.sourceGroup]);
 
   useEffect(() => {
     if (existingConfig) {
@@ -317,7 +324,11 @@ export function ServicioEditorPage() {
                       <SelectTrigger><SelectValue placeholder="Sin template" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="_none">Sin template</SelectItem>
-                        {templates?.map((t) => <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>)}
+                        {templateOptions.map((t) => (
+                          <SelectItem key={t.id} value={t.id.toString()}>
+                            [{t.sourceGroup}] {t.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -379,7 +390,17 @@ export function ServicioEditorPage() {
                     {templates?.map((t) => <SelectItem key={t.id} value={t.id.toString()}>{t.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">Asocia un template para usar como body en las peticiones</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Asocia un template para el body.{' '}
+                  {formData.jsonTemplateId != null && (
+                    <Link
+                      to={`/template-edit/${formData.jsonTemplateId}`}
+                      className="text-primary hover:underline"
+                    >
+                      Ver template #{formData.jsonTemplateId}
+                    </Link>
+                  )}
+                </p>
               </div>
             </div>
           )}

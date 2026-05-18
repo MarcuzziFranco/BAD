@@ -47,7 +47,17 @@ public class RequestConfig
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    public int? ApiCatalogId { get; set; }
+
+    public string? OpenApiOperationKey { get; set; }
+
+    /// <summary>
+    /// Agrupador: nombre del catálogo OpenAPI o <see cref="ResourceGroups.Manual"/>.
+    /// </summary>
+    public string SourceGroup { get; set; } = ResourceGroups.Manual;
+
     // Navegación
+    public ApiCatalog? ApiCatalog { get; set; }
     public JsonTemplate? JsonTemplate { get; set; }
     public ICollection<TestExecution> TestExecutions { get; set; } = new List<TestExecution>();
 }

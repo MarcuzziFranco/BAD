@@ -8,4 +8,7 @@ export interface RequestConfig {
   authValue: string | null;
   jsonTemplateId: number | null;
   createdAt: string;
+  sourceGroup: string;
+  apiCatalogId?: number | null;
+  openApiOperationKey?: string | null;
 }

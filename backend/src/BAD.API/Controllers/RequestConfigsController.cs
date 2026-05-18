@@ -2,6 +2,7 @@ using BAD.API.DTOs;
 using BAD.Core.Http;
 using BAD.Storage.Context;
 using BAD.Storage.Entities;
+using ResourceGroups = BAD.Storage.Entities.ResourceGroups;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -36,7 +37,10 @@ public class RequestConfigsController : ControllerBase
                 c.AuthType,
                 c.AuthValue,
                 c.JsonTemplateId,
-                c.CreatedAt
+                c.CreatedAt,
+                c.SourceGroup,
+                c.ApiCatalogId,
+                c.OpenApiOperationKey
             ))
             .ToListAsync();
 
@@ -63,7 +67,10 @@ public class RequestConfigsController : ControllerBase
             config.AuthType,
             config.AuthValue,
             config.JsonTemplateId,
-            config.CreatedAt
+            config.CreatedAt,
+            config.SourceGroup,
+            config.ApiCatalogId,
+            config.OpenApiOperationKey
         ));
     }
 
@@ -82,6 +89,7 @@ public class RequestConfigsController : ControllerBase
             AuthType = dto.AuthType ?? "None",
             AuthValue = dto.AuthValue,
             JsonTemplateId = dto.JsonTemplateId,
+            SourceGroup = ResourceGroups.Manual,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -97,7 +105,10 @@ public class RequestConfigsController : ControllerBase
             config.AuthType,
             config.AuthValue,
             config.JsonTemplateId,
-            config.CreatedAt
+            config.CreatedAt,
+            config.SourceGroup,
+            config.ApiCatalogId,
+            config.OpenApiOperationKey
         );
 
         return CreatedAtAction(nameof(GetById), new { id = config.Id }, result);
@@ -193,6 +204,7 @@ public class RequestConfigsController : ControllerBase
                 AuthType = parsed.AuthType ?? "None",
                 AuthValue = parsed.AuthValue,
                 JsonTemplateId = request.JsonTemplateId,
+                SourceGroup = ResourceGroups.Manual,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -208,7 +220,10 @@ public class RequestConfigsController : ControllerBase
                 config.AuthType,
                 config.AuthValue,
                 config.JsonTemplateId,
-                config.CreatedAt
+                config.CreatedAt,
+                config.SourceGroup,
+                config.ApiCatalogId,
+                config.OpenApiOperationKey
             );
 
             return CreatedAtAction(nameof(GetById), new { id = config.Id }, result);

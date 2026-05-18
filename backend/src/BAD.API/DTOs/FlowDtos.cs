@@ -68,3 +68,41 @@ public record FlowRunDetailDto(
     DateTime? FinishedAt,
     string DefinitionJson,
     IReadOnlyList<FlowRunStepDto> Steps);
+
+public record FlowStepPreviewRequestDto(
+    int RequestConfigId,
+    string BodyMode,
+    string? BaseJson,
+    int? TemplateId,
+    List<FlowFieldConfigPreviewDto>? Mutations,
+    string? PresetName,
+    int? DataPresetId,
+    bool MutatePerIteration,
+    List<FlowInputMappingPreviewDto> InputMappings);
+
+public record FlowFieldConfigPreviewDto(
+    string Key,
+    string Operation,
+    object? Value,
+    object? MinValue,
+    object? MaxValue,
+    List<object>? ListValues);
+
+public record FlowInputMappingPreviewDto(
+    string FromNodeId,
+    string SourcePath,
+    string TargetPath);
+
+public record FlowPreviewMergeRequestDto(
+    FlowStepPreviewRequestDto Step,
+    Dictionary<string, string>? ParentBodies);
+
+public record FlowPreviewMergeResponseDto(string MergedJson);
+
+public record FlowProbeStepResponseDto(
+    string RequestPayload,
+    string ResponseBody,
+    int StatusCode,
+    bool IsSuccess,
+    string? Error,
+    string MergedJson);

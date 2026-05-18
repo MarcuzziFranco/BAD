@@ -17,6 +17,56 @@ namespace BAD.Storage.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.27");
 
+            modelBuilder.Entity("BAD.Storage.Entities.ApiCatalog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BaseUrl")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InfoTitle")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InfoVersion")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OpenApiVersion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OperationsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SpecJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("ApiCatalogs");
+                });
+
             modelBuilder.Entity("BAD.Storage.Entities.ExecutionFlow", b =>
                 {
                     b.Property<int>("Id")
@@ -182,6 +232,9 @@ namespace BAD.Storage.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("ApiCatalogId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -198,12 +251,29 @@ namespace BAD.Storage.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OpenApiOperationKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceGroup")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("manual");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Name");
+
+                    b.HasIndex("SourceGroup");
+
+                    b.HasIndex("ApiCatalogId", "OpenApiOperationKey")
+                        .IsUnique()
+                        .HasFilter("[ApiCatalogId] IS NOT NULL AND [OpenApiOperationKey] IS NOT NULL");
 
                     b.ToTable("JsonTemplates");
                 });
@@ -212,6 +282,9 @@ namespace BAD.Storage.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ApiCatalogId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("AuthType")
@@ -241,6 +314,17 @@ namespace BAD.Storage.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OpenApiOperationKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceGroup")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("manual");
+
                     b.Property<string>("Url")
                         .IsRequired()
                         .HasMaxLength(2000)
@@ -249,6 +333,12 @@ namespace BAD.Storage.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("JsonTemplateId");
+
+                    b.HasIndex("SourceGroup");
+
+                    b.HasIndex("ApiCatalogId", "OpenApiOperationKey")
+                        .IsUnique()
+                        .HasFilter("[ApiCatalogId] IS NOT NULL AND [OpenApiOperationKey] IS NOT NULL");
 
                     b.ToTable("RequestConfigs");
                 });
@@ -428,12 +518,29 @@ namespace BAD.Storage.Migrations
                     b.Navigation("JsonTemplate");
                 });
 
+            modelBuilder.Entity("BAD.Storage.Entities.JsonTemplate", b =>
+                {
+                    b.HasOne("BAD.Storage.Entities.ApiCatalog", "ApiCatalog")
+                        .WithMany()
+                        .HasForeignKey("ApiCatalogId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ApiCatalog");
+                });
+
             modelBuilder.Entity("BAD.Storage.Entities.RequestConfig", b =>
                 {
+                    b.HasOne("BAD.Storage.Entities.ApiCatalog", "ApiCatalog")
+                        .WithMany()
+                        .HasForeignKey("ApiCatalogId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("BAD.Storage.Entities.JsonTemplate", "JsonTemplate")
                         .WithMany("RequestConfigs")
                         .HasForeignKey("JsonTemplateId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("ApiCatalog");
 
                     b.Navigation("JsonTemplate");
                 });

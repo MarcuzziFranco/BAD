@@ -1,3 +1,4 @@
+using BAD.API.Services;
 using BAD.Storage.Context;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -24,6 +25,7 @@ if (!Path.IsPathRooted(csb.DataSource))
     csb.DataSource = Path.Combine(builder.Environment.ContentRootPath, csb.DataSource);
 builder.Services.AddDbContext<BadDbContext>(options =>
     options.UseSqlite(csb.ConnectionString));
+builder.Services.AddScoped<OpenApiImportService>();
 
 // Configure CORS — localhost SPA (Vite :5012) o mismo host (:5013 con static embebido)
 builder.Services.AddCors(options =>

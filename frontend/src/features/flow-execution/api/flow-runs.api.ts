@@ -11,6 +11,8 @@ export interface StartFlowRunPayload {
 export const flowRunsApi = {
   start: (flowId: number, data: StartFlowRunPayload) =>
     api.post<FlowRunListItem>(`/flows/${flowId}/runs`, data),
+  listByFlow: (flowId: number, take = 5) =>
+    api.get<FlowRunListItem[]>(`/flows/${flowId}/runs`, { params: { take } }),
   getById: (id: number) => api.get<FlowRunDetail>(`/flow-runs/${id}`),
   cancel: (id: number) => api.post(`/flow-runs/${id}/cancel`),
 };

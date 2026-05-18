@@ -17,6 +17,7 @@ public class BadDbContext : DbContext
     public DbSet<ExecutionFlow> ExecutionFlows => Set<ExecutionFlow>();
     public DbSet<FlowRun> FlowRuns => Set<FlowRun>();
     public DbSet<FlowRunStep> FlowRunSteps => Set<FlowRunStep>();
+    public DbSet<ApiCatalog> ApiCatalogs => Set<ApiCatalog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +31,16 @@ public class BadDbContext : DbContext
             entity.Property(e => e.Description).HasMaxLength(500);
             entity.Property(e => e.Content).IsRequired();
             entity.HasIndex(e => e.Name);
+            entity.Property(e => e.SourceGroup).IsRequired().HasMaxLength(200).HasDefaultValue("manual");
+            entity.HasIndex(e => e.SourceGroup);
+            entity.Property(e => e.OpenApiOperationKey).HasMaxLength(128);
+            entity.HasIndex(e => new { e.ApiCatalogId, e.OpenApiOperationKey }).IsUnique()
+                .HasFilter("[ApiCatalogId] IS NOT NULL AND [OpenApiOperationKey] IS NOT NULL");
+
+            entity.HasOne(e => e.ApiCatalog)
+                .WithMany()
+                .HasForeignKey(e => e.ApiCatalogId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         // RequestConfig
@@ -40,11 +51,34 @@ public class BadDbContext : DbContext
             entity.Property(e => e.Url).IsRequired().HasMaxLength(2000);
             entity.Property(e => e.Method).IsRequired().HasMaxLength(10);
             entity.Property(e => e.AuthType).HasMaxLength(20);
+            entity.Property(e => e.SourceGroup).IsRequired().HasMaxLength(200).HasDefaultValue("manual");
+            entity.HasIndex(e => e.SourceGroup);
+
+            entity.Property(e => e.OpenApiOperationKey).HasMaxLength(128);
+            entity.HasIndex(e => new { e.ApiCatalogId, e.OpenApiOperationKey }).IsUnique()
+                .HasFilter("[ApiCatalogId] IS NOT NULL AND [OpenApiOperationKey] IS NOT NULL");
+
+            entity.HasOne(e => e.ApiCatalog)
+                .WithMany()
+                .HasForeignKey(e => e.ApiCatalogId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne(e => e.JsonTemplate)
                 .WithMany(t => t.RequestConfigs)
                 .HasForeignKey(e => e.JsonTemplateId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<ApiCatalog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.BaseUrl).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.SpecJson).IsRequired();
+            entity.Property(e => e.OpenApiVersion).HasMaxLength(20);
+            entity.Property(e => e.InfoTitle).HasMaxLength(200);
+            entity.Property(e => e.InfoVersion).HasMaxLength(50);
+            entity.HasIndex(e => e.Name);
         });
 
         // TestExecution

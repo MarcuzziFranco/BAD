@@ -6,6 +6,11 @@ import { GeneratorPage } from '@/features/generator';
 import { ServiciosPage, ServicioEditorPage } from '@/features/servicios';
 import { ExecutionsPage, ExecutionWizardPage, ExecutionDetailPage } from '@/features/executions';
 import { FlowsListPage, FlowEditorPage, FlowRunDetailPage } from '@/features/flow-execution';
+import {
+  OpenApiCatalogsListPage,
+  OpenApiImportWizardPage,
+  OpenApiCatalogDetailPage,
+} from '@/features/openapi-import';
 
 export function AppRouter() {
   return (
@@ -26,6 +31,9 @@ export function AppRouter() {
         <Route path="flows/new" element={<FlowEditorPage />} />
         <Route path="flows/edit/:id" element={<FlowEditorPage />} />
         <Route path="flow-runs/:id" element={<FlowRunDetailPage />} />
+        <Route path="openapi" element={<OpenApiCatalogsListPage />} />
+        <Route path="openapi/import" element={<OpenApiImportWizardPage />} />
+        <Route path="openapi/:id" element={<OpenApiCatalogDetailPage />} />
       </Route>
     </Routes>
   );

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import Editor from '@monaco-editor/react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
@@ -21,12 +22,15 @@ import {
 import { PageBreadcrumb } from '@/shared/components/common/PageBreadcrumb';
 import { templatesApi } from '../api/templates.api';
 import type { JsonTemplate } from '../types/templates.types';
+import { Link } from 'react-router-dom';
 import { Pencil, Eye, Trash2, Search, Plus, FileJson } from 'lucide-react';
+import { MANUAL_SOURCE_GROUP } from '@/shared/constants/resource-groups';
 
 export function TemplatesPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [groupFilter, setGroupFilter] = useState<string>('all');
   const [selectedTemplate, setSelectedTemplate] = useState<JsonTemplate | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
@@ -58,9 +62,24 @@ export function TemplatesPage() {
     catch { return content; }
   };
 
-  const filteredTemplates = templates?.filter((template) =>
-    template.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const groups = useMemo(() => {
+    const set = new Set((templates ?? []).map((t) => t.sourceGroup));
+    return Array.from(set).sort((a, b) => {
+      if (a === MANUAL_SOURCE_GROUP) return 1;
+      if (b === MANUAL_SOURCE_GROUP) return -1;
+      return a.localeCompare(b);
+    });
+  }, [templates]);
+
+  const filteredTemplates = templates?.filter((template) => {
+    if (groupFilter !== 'all' && template.sourceGroup !== groupFilter) return false;
+    const q = searchTerm.toLowerCase();
+    return (
+      template.name.toLowerCase().includes(q) ||
+      template.sourceGroup.toLowerCase().includes(q) ||
+      (template.openApiOperationKey?.toLowerCase().includes(q) ?? false)
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -90,6 +109,18 @@ export function TemplatesPage() {
         {searchTerm && (
           <Button variant="ghost" size="sm" onClick={() => setSearchTerm('')}>Limpiar</Button>
         )}
+        <select
+          className="h-9 rounded-md border bg-background px-2 text-sm"
+          value={groupFilter}
+          onChange={(e) => setGroupFilter(e.target.value)}
+        >
+          <option value="all">Todos los grupos</option>
+          {groups.map((g) => (
+            <option key={g} value={g}>
+              {g === MANUAL_SOURCE_GROUP ? 'manual' : g}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="border rounded-lg">
@@ -98,6 +129,8 @@ export function TemplatesPage() {
             <TableRow>
               <TableHead className="w-20">ID</TableHead>
               <TableHead>Nombre</TableHead>
+              <TableHead>Grupo</TableHead>
+              <TableHead className="hidden lg:table-cell">Servicio(s)</TableHead>
               <TableHead className="hidden md:table-cell">Descripcion</TableHead>
               <TableHead className="w-32 text-right">Acciones</TableHead>
             </TableRow>
@@ -105,7 +138,7 @@ export function TemplatesPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   <Spinner className="mx-auto size-5" />
                 </TableCell>
               </TableRow>
@@ -113,7 +146,31 @@ export function TemplatesPage() {
               filteredTemplates.map((template) => (
                 <TableRow key={template.id}>
                   <TableCell className="font-mono text-sm text-muted-foreground">{formatId(template.id)}</TableCell>
-                  <TableCell className="font-medium">{template.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <span className="inline-flex items-center gap-2 flex-wrap">
+                      {template.name}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-[10px] font-normal">
+                      {template.sourceGroup === MANUAL_SOURCE_GROUP ? 'manual' : template.sourceGroup}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell text-xs">
+                    {template.linkedServices && template.linkedServices.length > 0 ? (
+                      template.linkedServices.map((s) => (
+                        <Link
+                          key={s.id}
+                          to={`/servicios-edit/${s.id}`}
+                          className="text-primary hover:underline block"
+                        >
+                          #{s.id} {s.name}
+                        </Link>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">{template.description || '-'}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">

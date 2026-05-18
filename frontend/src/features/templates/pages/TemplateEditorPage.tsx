@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import Editor from '@monaco-editor/react';
@@ -7,90 +7,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { PageBreadcrumb } from '@/shared/components/common/PageBreadcrumb';
 import { templatesApi } from '../api/templates.api';
-import { AlertCircle } from 'lucide-react';
-
-interface JsonTreeNodeProps {
-  data: unknown;
-  name?: string;
-  level?: number;
-}
-
-function JsonTreeNode({ data, name, level = 0 }: JsonTreeNodeProps) {
-  const [isExpanded, setIsExpanded] = useState(level < 2);
-  
-  const getTypeColor = (value: unknown): string => {
-    if (value === null) return 'text-gray-500';
-    if (typeof value === 'string') return 'text-green-600 dark:text-green-400';
-    if (typeof value === 'number') return 'text-blue-600 dark:text-blue-400';
-    if (typeof value === 'boolean') return 'text-purple-600 dark:text-purple-400';
-    return 'text-foreground';
-  };
-
-  const getTypeBadge = (value: unknown): string => {
-    if (value === null) return 'null';
-    if (Array.isArray(value)) return `array[${value.length}]`;
-    if (typeof value === 'object') return 'object';
-    return typeof value;
-  };
-
-  const isExpandable = typeof data === 'object' && data !== null;
-  const paddingLeft = level * 16;
-
-  if (!isExpandable) {
-    return (
-      <div className="flex items-center gap-2 py-0.5" style={{ paddingLeft }}>
-        {name && <span className="text-muted-foreground">{name}:</span>}
-        <span className={getTypeColor(data)}>
-          {data === null ? 'null' : typeof data === 'string' ? `"${data}"` : String(data)}
-        </span>
-        <Badge variant="outline" className="text-[10px] px-1 py-0">
-          {getTypeBadge(data)}
-        </Badge>
-      </div>
-    );
-  }
-
-  const entries = Array.isArray(data) 
-    ? data.map((item, index) => [index, item] as [number, unknown])
-    : Object.entries(data);
-
-  return (
-    <div style={{ paddingLeft: level > 0 ? paddingLeft : 0 }}>
-      <div 
-        className="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-accent rounded"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        <span className="text-xs w-4">{isExpanded ? '\u25BC' : '\u25B6'}</span>
-        {name && <span className="text-muted-foreground">{name}:</span>}
-        <Badge variant="outline" className="text-[10px] px-1 py-0">
-          {getTypeBadge(data)}
-        </Badge>
-        {!isExpanded && (
-          <span className="text-xs text-muted-foreground">
-            {Array.isArray(data) ? `[${data.length} items]` : `{${Object.keys(data).length} keys}`}
-          </span>
-        )}
-      </div>
-      {isExpanded && (
-        <div className="border-l border-border ml-2">
-          {entries.map(([key, value]) => (
-            <JsonTreeNode 
-              key={String(key)} 
-              data={value} 
-              name={String(key)} 
-              level={level + 1} 
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+import { configsApi } from '@/features/servicios/api/servicios.api';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { AlertCircle, Plug } from 'lucide-react';
+import { JsonTreeView } from '@/shared/components/json/JsonPathPicker';
 
 export function TemplateEditorPage() {
   const navigate = useNavigate();
@@ -105,6 +35,7 @@ export function TemplateEditorPage() {
   const [jsonContent, setJsonContent] = useState('{\n  \n}');
   const [parseError, setParseError] = useState<string | null>(null);
   const [parsedJson, setParsedJson] = useState<unknown>(null);
+  const [linkRequestConfigId, setLinkRequestConfigId] = useState<number | null>(null);
 
   const { data: template, isLoading } = useQuery({
     queryKey: ['template', id],
@@ -112,10 +43,23 @@ export function TemplateEditorPage() {
     enabled: isEditing,
   });
 
+  const { data: services } = useQuery({
+    queryKey: ['configs'],
+    queryFn: () => configsApi.getAll().then((r) => r.data),
+  });
+
+  const serviceOptions = useMemo(() => {
+    const list = services ?? [];
+    if (!template?.sourceGroup) return list;
+    const sameGroup = list.filter((s) => s.sourceGroup === template.sourceGroup);
+    return sameGroup.length > 0 ? sameGroup : list;
+  }, [services, template?.sourceGroup]);
+
   useEffect(() => {
     if (template) {
       setName(template.name);
       setDescription(template.description || '');
+      setLinkRequestConfigId(template.linkedServices?.[0]?.id ?? null);
       try {
         const formatted = JSON.stringify(JSON.parse(template.content), null, 2);
         setJsonContent(formatted);
@@ -171,6 +115,7 @@ export function TemplateEditorPage() {
       name: name.trim(),
       description: description.trim() || undefined,
       content: jsonContent,
+      linkRequestConfigId: linkRequestConfigId ?? undefined,
     };
 
     if (isEditing && id) {
@@ -264,6 +209,55 @@ export function TemplateEditorPage() {
         </div>
       </div>
 
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Plug className="w-4 h-4" />
+            Vinculo con servicio
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            El body del servicio usa este template. En importaciones OpenAPI el vinculo se crea al aplicar.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3 max-w-xl">
+          <div>
+            <label className="text-sm font-medium">Servicio asociado (opcional)</label>
+            <Select
+              value={linkRequestConfigId != null ? String(linkRequestConfigId) : '_none'}
+              onValueChange={(v) =>
+                setLinkRequestConfigId(v === '_none' ? null : parseInt(v, 10))
+              }
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Sin servicio" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="_none">Sin servicio</SelectItem>
+                {serviceOptions.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    [{s.sourceGroup}] {s.method} — {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {template?.linkedServices && template.linkedServices.length > 0 && (
+            <div className="text-xs text-muted-foreground space-y-1">
+              <span className="font-medium text-foreground">Servicios vinculados:</span>
+              <ul className="list-disc pl-4">
+                {template.linkedServices.map((s) => (
+                  <li key={s.id}>
+                    <Link to={`/servicios-edit/${s.id}`} className="text-primary hover:underline">
+                      #{s.id} {s.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="h-[calc(100vh-320px)]">
           <CardHeader className="pb-2">
@@ -307,7 +301,7 @@ export function TemplateEditorPage() {
               </TabsList>
               <TabsContent value="tree" className="h-[calc(100%-40px)] overflow-auto mt-2">
                 {parsedJson ? (
-                  <div className="font-mono text-sm"><JsonTreeNode data={parsedJson} /></div>
+                  <JsonTreeView json={jsonContent} />
                 ) : (
                   <p className="text-muted-foreground text-sm">
                     {parseError ? 'JSON invalido' : 'Escribe JSON valido para ver el arbol'}

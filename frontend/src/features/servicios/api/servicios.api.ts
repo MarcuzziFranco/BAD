@@ -5,9 +5,9 @@ import type { RequestConfig } from '../types/servicios.types';
 export const configsApi = {
   getAll: () => api.get<RequestConfig[]>('/requestconfigs'),
   getById: (id: number) => api.get<RequestConfig>(`/requestconfigs/${id}`),
-  create: (data: Omit<RequestConfig, 'id' | 'createdAt'>) =>
+  create: (data: Omit<RequestConfig, 'id' | 'createdAt' | 'sourceGroup' | 'apiCatalogId' | 'openApiOperationKey'>) =>
     api.post<RequestConfig>('/requestconfigs', data),
-  update: (id: number, data: Omit<RequestConfig, 'id' | 'createdAt'>) =>
+  update: (id: number, data: Omit<RequestConfig, 'id' | 'createdAt' | 'sourceGroup' | 'apiCatalogId' | 'openApiOperationKey'>) =>
     api.put(`/requestconfigs/${id}`, data),
   delete: (id: number) => api.delete(`/requestconfigs/${id}`),
   parseCurl: (curlCommand: string) =>
