@@ -3,6 +3,7 @@ using System;
 using BAD.Storage.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BAD.Storage.Migrations
 {
     [DbContext(typeof(BadDbContext))]
-    partial class BadDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260518134250_AddExecutionFlowAndPresetUsedLength")]
+    partial class AddExecutionFlowAndPresetUsedLength
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.27");

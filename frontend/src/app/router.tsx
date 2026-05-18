@@ -5,6 +5,7 @@ import { TemplatesPage, TemplateEditorPage } from '@/features/templates';
 import { GeneratorPage } from '@/features/generator';
 import { ServiciosPage, ServicioEditorPage } from '@/features/servicios';
 import { ExecutionsPage, ExecutionWizardPage, ExecutionDetailPage } from '@/features/executions';
+import { FlowsListPage, FlowEditorPage, FlowRunDetailPage } from '@/features/flow-execution';
 
 export function AppRouter() {
   return (
@@ -21,6 +22,10 @@ export function AppRouter() {
         <Route path="executions" element={<ExecutionsPage />} />
         <Route path="executions/new" element={<ExecutionWizardPage />} />
         <Route path="executions/:id" element={<ExecutionDetailPage />} />
+        <Route path="flows" element={<FlowsListPage />} />
+        <Route path="flows/new" element={<FlowEditorPage />} />
+        <Route path="flows/edit/:id" element={<FlowEditorPage />} />
+        <Route path="flow-runs/:id" element={<FlowRunDetailPage />} />
       </Route>
     </Routes>
   );

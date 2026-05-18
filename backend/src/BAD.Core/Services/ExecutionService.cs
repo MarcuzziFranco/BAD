@@ -153,6 +153,74 @@ public class ExecutionService : IDisposable
         return results;
     }
 
+    /// <summary>Ejecuta usando payloads ya construidos (p. ej. flow con bases distintas por índice).</summary>
+    public async Task<List<RequestResult>> ExecutePrecomputedPayloadsAsync(
+        ExecutionConfig config,
+        IReadOnlyList<string> jsonPayloads,
+        Action<ExecutionProgress>? onProgress = null)
+    {
+        _cancellationTokenSource = new CancellationTokenSource();
+        var cancellationToken = _cancellationTokenSource.Token;
+
+        var progress = new ExecutionProgress
+        {
+            ExecutionId = config.ExecutionId,
+            Total = jsonPayloads.Count,
+            Status = "running"
+        };
+        _progressCache[config.ExecutionId] = progress;
+
+        var results = new List<RequestResult>();
+        var list = jsonPayloads.ToList();
+
+        using var executor = new RequestExecutor();
+
+        if (config.Headers != null && config.Headers.Count > 0)
+            executor.SetHeaders(config.Headers);
+
+        ConfigureAuthentication(executor, config.AuthType, config.AuthValue);
+
+        try
+        {
+            switch (config.ExecutionMode.ToLower())
+            {
+                case "sequential":
+                    results = await ExecuteSequentialAsync(
+                        executor, config, list, progress, onProgress, cancellationToken);
+                    break;
+                case "parallel":
+                    results = await ExecuteParallelAsync(
+                        executor, config, list, progress, onProgress, cancellationToken);
+                    break;
+                case "burst":
+                    results = await ExecuteBurstAsync(
+                        executor, config, list, progress, onProgress, cancellationToken);
+                    break;
+                default:
+                    results = await ExecuteSequentialAsync(
+                        executor, config, list, progress, onProgress, cancellationToken);
+                    break;
+            }
+
+            progress.Status = "completed";
+        }
+        catch (OperationCanceledException)
+        {
+            progress.Status = "cancelled";
+        }
+        catch (Exception)
+        {
+            progress.Status = "failed";
+            throw;
+        }
+        finally
+        {
+            onProgress?.Invoke(progress);
+        }
+
+        return results;
+    }
+
     /// <summary>
     /// Cancela la ejecución actual
     /// </summary>
@@ -251,6 +319,55 @@ public class ExecutionService : IDisposable
         }
 
         return payloads;
+    }
+
+    /// <summary>
+    /// Genera un payload por entrada en <paramref name="mergedBasesPerIndex" /> aplicando el mismo preset y mutaciones que <see cref="GeneratePayloads" />.
+    /// </summary>
+    public List<string> GeneratePayloadsWithVariableBases(ExecutionConfig config, IReadOnlyList<string> mergedBasesPerIndex)
+    {
+        if (mergedBasesPerIndex.Count != config.RequestCount)
+            throw new ArgumentException(
+                $"Se esperaban {config.RequestCount} bases, hay {mergedBasesPerIndex.Count}.",
+                nameof(mergedBasesPerIndex));
+
+        var payloads = new List<string>(mergedBasesPerIndex.Count);
+        for (var i = 0; i < mergedBasesPerIndex.Count; i++)
+        {
+            if (string.Equals(config.BodyMode, "none", StringComparison.OrdinalIgnoreCase))
+            {
+                payloads.Add("{}");
+                continue;
+            }
+
+            var sub = CloneConfigWithBase(config, mergedBasesPerIndex[i], perIndexMutate: config.MutatePerIteration);
+            sub.RequestCount = 1;
+            var batch = GeneratePayloads(sub);
+            payloads.Add(batch.Count > 0 ? batch[0] : "{}");
+        }
+
+        return payloads;
+    }
+
+    private static ExecutionConfig CloneConfigWithBase(ExecutionConfig c, string baseJson, bool perIndexMutate)
+    {
+        return new ExecutionConfig
+        {
+            ExecutionId = c.ExecutionId,
+            Url = c.Url,
+            Method = c.Method,
+            Headers = c.Headers,
+            AuthType = c.AuthType,
+            AuthValue = c.AuthValue,
+            BodyMode = c.BodyMode,
+            BaseJson = baseJson,
+            Mutations = c.Mutations,
+            PresetName = c.PresetName,
+            RequestCount = 1,
+            ExecutionMode = c.ExecutionMode,
+            IntervalMs = c.IntervalMs,
+            MutatePerIteration = perIndexMutate
+        };
     }
 
     private DefaultValueConfig ConvertToDefaultValueConfig(FieldMutationConfig mutation)

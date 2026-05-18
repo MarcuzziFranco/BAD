@@ -5,6 +5,7 @@ import {
   Zap,
   Plug,
   Rocket,
+  GitBranch,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Generador', href: '/generator', icon: Zap },
   { name: 'Servicios', href: '/servicios', icon: Plug },
   { name: 'Ejecuciones', href: '/executions', icon: Rocket },
+  { name: 'Flujos', href: '/flows', icon: GitBranch },
 ];
 
 export function AppSidebar() {

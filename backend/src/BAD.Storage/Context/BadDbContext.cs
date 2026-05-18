@@ -14,6 +14,9 @@ public class BadDbContext : DbContext
     public DbSet<TestExecution> TestExecutions => Set<TestExecution>();
     public DbSet<TestResult> TestResults => Set<TestResult>();
     public DbSet<GeneratorSetting> GeneratorSettings => Set<GeneratorSetting>();
+    public DbSet<ExecutionFlow> ExecutionFlows => Set<ExecutionFlow>();
+    public DbSet<FlowRun> FlowRuns => Set<FlowRun>();
+    public DbSet<FlowRunStep> FlowRunSteps => Set<FlowRunStep>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,8 +50,8 @@ public class BadDbContext : DbContext
         // TestExecution
         modelBuilder.Entity<TestExecution>(entity =>
         {
-            entity.HasKey(e => e.Id);
-            entity.Property(e => e.PresetUsed).HasMaxLength(100);
+            entity.HasKey(e => e.Id);        
+        entity.Property(e => e.PresetUsed).HasMaxLength(500);
             entity.Property(e => e.Status).HasMaxLength(20).HasDefaultValue("pending");
             entity.Property(e => e.ExecutionMode).HasMaxLength(20).HasDefaultValue("sequential");
             entity.Property(e => e.BodyMode).HasMaxLength(30).HasDefaultValue("none");
@@ -91,6 +94,49 @@ public class BadDbContext : DbContext
                 .WithMany(t => t.GeneratorSettings)
                 .HasForeignKey(e => e.JsonTemplateId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ExecutionFlow>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.DefinitionJson).IsRequired();
+            entity.HasIndex(e => e.Name);
+        });
+
+        modelBuilder.Entity<FlowRun>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.ExecutionMode).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Error).HasMaxLength(4000);
+            entity.HasIndex(e => e.StartedAt);
+
+            entity.HasOne(e => e.ExecutionFlow)
+                .WithMany(f => f.FlowRuns)
+                .HasForeignKey(e => e.ExecutionFlowId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FlowRunStep>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ClientNodeId).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Error).HasMaxLength(4000);
+
+            entity.HasIndex(e => new { e.FlowRunId, e.ClientNodeId });
+
+            entity.HasOne(e => e.FlowRun)
+                .WithMany(r => r.Steps)
+                .HasForeignKey(e => e.FlowRunId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.TestExecution)
+                .WithMany()
+                .HasForeignKey(e => e.TestExecutionId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }
